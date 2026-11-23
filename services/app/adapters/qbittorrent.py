@@ -347,7 +347,16 @@ class QbitClient:
                             "qBittorrent response exceeded the size limit.",
                         )
                 return status, bytes(content)
-        except (httpx.HTTPError, TimeoutError) as error:
+        except (httpx.TimeoutException, TimeoutError) as error:
+            # A slow reply (e.g. qBittorrent busy moving files) is transient for
+            # status checks; it must not park an already-submitted download.
+            raise AdapterError(
+                FailureKind.UNCERTAIN if mutating else FailureKind.TIMEOUT,
+                "qBittorrent submission outcome is unknown. Reconcile before submitting again."
+                if mutating
+                else "qBittorrent was slow to respond. Dewarr will check again.",
+            ) from error
+        except httpx.HTTPError as error:
             raise AdapterError(
                 FailureKind.UNCERTAIN if mutating else FailureKind.ROUTE,
                 "qBittorrent submission outcome is unknown. Reconcile before submitting again."
