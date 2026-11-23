@@ -261,7 +261,18 @@ def approval_of(reasons) -> str:
 
 
 _LIVE_DOWNLOADS = ("queued", "preflight", "submitting", "uncertain", "downloading", "held")
-RequestStatus = Literal["pending", "downloading", "library", "declined", "withdrawn", "review"]
+RequestStatus = Literal[
+    "pending",
+    "downloading",
+    "library",
+    "declined",
+    "withdrawn",
+    "review",
+    # Simplified views: everything unfinished, what needs the user, and what was closed.
+    "open",
+    "attention",
+    "closed",
+]
 
 
 def _active_reasons(*extra):
@@ -440,6 +451,10 @@ def _partial_collection_review():
 
 
 def _status_filters(status: RequestStatus):
+    if status in {"open", "attention"}:
+        return [exists(_active_reasons(AcquisitionReason.approval_status != "declined"))]
+    if status == "closed":
+        return [or_(and_(*_status_filters("declined")), *_status_filters("withdrawn"))]
     if status == "pending":
         return [exists(_active_reasons(AcquisitionReason.approval_status == "pending"))]
     if status == "declined":
@@ -582,6 +597,18 @@ def _matches_card(card, status: str) -> bool:
         return "in-library" in chips
     if status == "downloading":
         return any(chip in {"downloading", "importing", "preparing-download"} for chip in chips)
+    if status == "open":
+        return not chips or any(chip != "in-library" for chip in chips)
+    if status == "attention":
+        return bool(
+            card.can_decide
+            or card.can_start_download
+            or any(chip in {"review", "needs-review", "download-not-started"} for chip in chips)
+            or any(
+                target.state != "satisfied" and target.next_action == "search"
+                for target in card.targets
+            )
+        )
     return True
 
 
@@ -1363,7 +1390,7 @@ async def all_requests(
     if where:
         listing = listing.where(*where)
         counted = counted.where(*where)
-    if status in {"library", "downloading", "review"}:
+    if status in {"library", "downloading", "review", "open", "attention"}:
         return await _projected_page(db, user, listing, counted, order, status, offset, limit)
     intents = (await db.scalars(listing.order_by(*order).offset(offset).limit(limit))).all()
     total = await db.scalar(counted)

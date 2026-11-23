@@ -962,3 +962,41 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Simplified request rows: telemetry under the bar, review in place, extras tucked away. */
+.request-transfer-telemetry {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+}
+
+.request-review {
+  display: grid;
+  gap: 12px;
+}
+
+.request-review .download-review[data-compact] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.request-reject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.request-advanced {
+  margin-top: 8px;
+}
+
+.request-advanced > summary {
+  cursor: pointer;
+  color: var(--muted, inherit);
+}
+
+.request-advanced[open] .request-details-chevron {
+  transform: rotate(90deg);
+}

@@ -150,17 +150,16 @@ for (const role of ["admin", "member", "viewer"]) {
       name: "Request filters",
     });
     await requestFilters
-      .getByRole("link", { name: "Downloading", exact: true })
+      .getByRole("link", { name: "In progress", exact: true })
       .click();
     await expect(
-      page.getByText("No downloads yet.", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      requestFilters.getByRole("link", {
-        name: "Download review",
+      page.getByText("Nothing in progress. Find a book to request it.", {
         exact: true,
       }),
-    ).toHaveCount(role === "admin" ? 1 : 0);
+    ).toBeVisible();
+    await expect(
+      requestFilters.getByRole("link", { name: "Needs you", exact: true }),
+    ).toHaveCount(1);
     await page.goto("/activity#downloads");
     await expect(page).toHaveURL(/\/requests#downloads$/);
     await page.goto("/activity?status=completed");

@@ -6,20 +6,21 @@ import { requestFilter, type RequestFilter } from "./requestFilters";
 
 const SavedRequests = lazy(() => import("./ActivityRequests"));
 
-const filters: {
-  id: RequestFilter;
-  title: string;
-  approve?: boolean;
-  admin?: boolean;
-}[] = [
-  { id: "all", title: "Active" },
-  { id: "pending", title: "Pending", approve: true },
-  { id: "downloading", title: "Downloading" },
+/** Four places a request can be: waiting on you, on its way, done, or closed. */
+const filters: { id: RequestFilter; title: string }[] = [
+  { id: "attention", title: "Needs you" },
+  { id: "all", title: "In progress" },
   { id: "library", title: "In library" },
-  { id: "declined", title: "Declined" },
-  { id: "withdrawn", title: "Withdrawn" },
-  { id: "review", title: "Download review", admin: true },
+  { id: "closed", title: "Closed" },
 ];
+
+/** Older links (and bookmarks) still open, under the tab they now belong to. */
+function tabFor(status: RequestFilter): RequestFilter {
+  if (status === "pending" || status === "review") return "attention";
+  if (status === "downloading" || status === "open") return "all";
+  if (status === "declined" || status === "withdrawn") return "closed";
+  return status;
+}
 
 export default function Requests({
   admin,
@@ -36,9 +37,9 @@ export default function Requests({
   const selected = requestFilter(hash, params.get("status"));
   const sort = params.get("sort") === "title" ? "title" : "newest";
   const counts = useRequestCounts().data;
-  const visible = filters.filter(
-    (filter) => (!filter.approve || canApprove) && (!filter.admin || admin),
-  );
+  const attention =
+    (canApprove ? (counts?.pending ?? 0) : 0) +
+    (admin ? (counts?.review ?? 0) : 0);
   const status =
     (selected === "review" && !admin) || (selected === "pending" && !canApprove)
       ? "all"
@@ -61,27 +62,17 @@ export default function Requests({
       <h1 className="workspace-title">Requests</h1>
       <div className="page-tabs-bar">
         <nav className="page-tabs" aria-label="Request filters">
-          {visible.map((filter) => (
+          {filters.map((filter) => (
             <Link
               key={filter.id}
               aria-label={filter.title}
               to={queryFor(filter.id)}
-              aria-current={status === filter.id ? "page" : undefined}
+              aria-current={tabFor(status) === filter.id ? "page" : undefined}
             >
               {filter.title}
-              {(["pending", "downloading", "review"] as string[]).includes(
-                filter.id,
-              ) &&
-                (counts?.[filter.id as "pending" | "downloading" | "review"] ??
-                  0) > 0 && (
-                  <span className="requests-tab-count">
-                    {
-                      counts?.[
-                        filter.id as "pending" | "downloading" | "review"
-                      ]
-                    }
-                  </span>
-                )}
+              {filter.id === "attention" && attention > 0 && (
+                <span className="requests-tab-count">{attention}</span>
+              )}
             </Link>
           ))}
         </nav>
@@ -109,7 +100,7 @@ export default function Requests({
               Import local files
             </Link>
           )}
-          <Link className="page-view-action" to="/discover">
+          <Link className="button-link primary" to="/discover">
             Find books
           </Link>
         </div>
@@ -137,7 +128,6 @@ export default function Requests({
           key={params.get("q") || ""}
           maxLength={200}
         />
-        <button>Search requests</button>
         {params.get("q") && (
           <Link to={`/requests?${cleared}`}>Clear search</Link>
         )}
@@ -145,6 +135,7 @@ export default function Requests({
       <Suspense fallback={<ContentSkeleton />}>
         <SavedRequests
           canManage={canRequest}
+          admin={admin}
           status={status}
           sort={sort}
           q={params.get("q") || ""}

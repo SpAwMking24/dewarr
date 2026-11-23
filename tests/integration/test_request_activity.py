@@ -219,6 +219,18 @@ async def test_request_cards_filter_by_status_and_role(client, admin, catalog, d
     library = (await client.get("/api/requests?status=library")).json()
     assert saved["id"] in {item["id"] for item in library["items"]}
 
+    def ids(page):
+        return {item["id"] for item in page["items"]}
+
+    # The simplified tabs: finished books leave "In progress", and approvals need you.
+    still_open = (await client.get("/api/requests?status=open")).json()
+    assert waiting["id"] in ids(still_open)
+    shelved = next(item for item in library["items"] if item["id"] == saved["id"])
+    unfinished = any(target["state"] != "satisfied" for target in shelved["targets"])
+    assert (saved["id"] in ids(still_open)) is unfinished
+    attention = (await client.get("/api/requests?status=attention")).json()
+    assert waiting["id"] in ids(attention)
+
     alpha = (
         await client.post("/api/catalog/works", json={"title": "Alpha Tale", "authors": ["A"]})
     ).json()
@@ -248,6 +260,11 @@ async def test_request_cards_filter_by_status_and_role(client, admin, catalog, d
     assert saved["id"] not in {
         item["id"] for item in (await client.get("/api/requests?active_only=true")).json()["items"]
     }
+    closed = ids((await client.get("/api/requests?status=closed")).json())
+    assert {waiting["id"], saved["id"]} <= closed
+    assert not {waiting["id"], saved["id"]} & ids(
+        (await client.get("/api/requests?status=open")).json()
+    )
 
 
 async def test_approver_status_follows_the_requesters_library(client, admin, catalog):

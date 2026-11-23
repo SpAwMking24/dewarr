@@ -1,7 +1,7 @@
 import { ContextLink } from "../components/NavigationContinuity";
 import ContentSkeleton from "../components/ContentSkeleton";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   Check,
@@ -12,7 +12,6 @@ import {
   LoaderCircle,
   Download,
   ExternalLink,
-  Eye,
   Headphones,
   RefreshCw,
   Search,
@@ -20,10 +19,10 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { api, result } from "../api/client";
 import type { components } from "../api/schema";
-import { Notice } from "../components";
+import { Loading, Notice } from "../components";
+import DownloadImportReview from "../components/DownloadImportReview";
 import InfiniteScroll from "../components/InfiniteScroll";
 import BookDialog from "../components/BookDialog";
 import { usePagedQuery } from "../hooks/usePagedQuery";
@@ -46,7 +45,10 @@ type Target = components["schemas"]["TargetView"];
 export type { RequestFilter };
 
 const emptyCopy: Record<RequestFilter, string> = {
-  all: "No active requests.",
+  all: "Nothing in progress. Find a book to request it.",
+  open: "Nothing in progress. Find a book to request it.",
+  attention: "Nothing needs you right now.",
+  closed: "No declined or withdrawn requests.",
   pending: "No requests are waiting for approval.",
   downloading: "No downloads yet.",
   library: "No requests are in the library yet.",
@@ -155,18 +157,18 @@ function expectedStatus(request: Request) {
 
 export default function ActivityRequests({
   canManage,
+  admin = false,
   status,
   sort,
   q = "",
 }: {
   canManage: boolean;
+  admin?: boolean;
   status: RequestFilter;
   sort: "newest" | "title";
   q?: string;
 }) {
   const cache = useQueryClient();
-  const navigate = useNavigate();
-  const claimKeys = useRef(new Map<string, string>());
   const requests = usePagedQuery({
     queryKey: ["requests", "board", status, sort, q],
     queryFn: async (offset, signal) =>
@@ -179,7 +181,7 @@ export default function ActivityRequests({
               limit: 10,
               sort,
               q: q || undefined,
-              ...(status === "all" ? { active_only: true } : { status }),
+              status: status === "all" ? "open" : status,
             },
           },
         }),
@@ -263,38 +265,11 @@ export default function ActivityRequests({
     },
     onSuccess: refresh,
   });
-  const claim = useMutation({
-    mutationFn: async (target: Target) => {
-      const revision = `${target.attempt_id}:${target.review_revision}`;
-      if (!claimKeys.current.has(revision))
-        claimKeys.current.set(revision, randomUUID());
-      return result(
-        await api.POST("/api/acquisition/reviews/{attempt_id}/claim", {
-          params: {
-            path: { attempt_id: target.attempt_id! },
-            header: { "idempotency-key": claimKeys.current.get(revision)! },
-          },
-          body: { revision: target.review_revision! },
-        }),
-      );
-    },
-    onSuccess: (review) => {
-      if (review.inspection_id)
-        navigate(
-          `/organization/inspections?inspection=${review.inspection_id}`,
-        );
-    },
-    onSettled: refresh,
-  });
   return (
     <section className="requests-board" aria-label="Requests">
       <Notice
         error={
-          requests.error ||
-          withdraw.error ||
-          decide.error ||
-          transfer.error ||
-          claim.error
+          requests.error || withdraw.error || decide.error || transfer.error
         }
       />
       {requests.isPending && <ContentSkeleton />}
@@ -331,8 +306,6 @@ export default function ActivityRequests({
                   <th>Format</th>
                   <th>Status</th>
                   <th>Progress</th>
-                  <th>Speed</th>
-                  <th>Time left</th>
                   <th>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -343,11 +316,9 @@ export default function ActivityRequests({
                   key={request.id}
                   request={request}
                   canManage={canManage}
+                  admin={admin}
                   busy={
-                    withdraw.isPending ||
-                    decide.isPending ||
-                    transfer.isPending ||
-                    claim.isPending
+                    withdraw.isPending || decide.isPending || transfer.isPending
                   }
                   onWithdraw={(reason) =>
                     withdraw.mutate({ intent: request.id, reason })
@@ -361,7 +332,7 @@ export default function ActivityRequests({
                     })
                   }
                   onTransfer={(id, cancel) => transfer.mutate({ id, cancel })}
-                  onClaim={(target) => claim.mutate(target)}
+                  refresh={refresh}
                 />
               ))}
             </table>
@@ -445,46 +416,64 @@ function RequestCover({
   );
 }
 
-function targetActions(
+type TargetPlan = {
+  /** The single thing to do next, shown on the row. */
+  primary?: RowAction;
+  /** Everything else lives in the expanded row. */
+  more: RowAction[];
+  /** The expanded row can review these files without leaving the page. */
+  reviewable: boolean;
+};
+
+function targetPlan(
   request: Request,
   target: Target,
   canManage: boolean,
+  admin: boolean,
   onTransfer: (attemptId: string, cancel: boolean) => void,
-  onClaim: (target: Target) => void,
-) {
-  if (target.state === "satisfied") return [];
+  open: () => void,
+): TargetPlan {
+  const more: RowAction[] = [];
+  if (target.state === "satisfied") return { more, reviewable: false };
   const qualify = (label: string) =>
     request.targets.length > 1
       ? `${label} · ${mediumLabel(target.slot)}`
       : label;
-  const actions: RowAction[] = [];
-  if (target.next_action === "search" && request.can_open_book)
-    actions.push({
+  const reviewable =
+    target.needs_review &&
+    ((target.can_claim && !!target.attempt_id && !!target.review_revision) ||
+      (admin && !!target.inspection_id));
+  let primary: RowAction | undefined;
+  if (reviewable)
+    primary = {
+      key: `review-${target.slot}`,
+      label: qualify("Review"),
+      icon: ClipboardCheck,
+      onSelect: open,
+    };
+  else if (target.next_action === "search" && request.can_open_book)
+    primary = {
       key: `search-${target.slot}`,
-      label: "Choose release",
+      label: qualify("Choose download"),
       icon: Search,
       href: `/books/${request.work_id}?tab=sources&request=${request.id}&slot=${target.slot}`,
+    };
+  if (canManage && target.can_recheck && target.attempt_id)
+    more.push({
+      key: `recheck-${target.slot}`,
+      label: qualify("Recheck"),
+      icon: RefreshCw,
+      onSelect: () => onTransfer(target.attempt_id!, false),
     });
-  if (
-    target.needs_review &&
-    target.can_claim &&
-    target.attempt_id &&
-    target.review_revision
-  ) {
-    const label = target.review_retry
-      ? "Retry"
-      : target.review_reassignment
-        ? "Reassign"
-        : "Review files";
-    actions.push({
-      key: `claim-${target.slot}`,
-      label: qualify(label),
-      icon: ClipboardCheck,
-      onSelect: () => onClaim(target),
+  if (target.next_action === "selected-release" && target.source_artifact_id)
+    more.push({
+      key: `release-${target.slot}`,
+      label: qualify("View release"),
+      icon: ExternalLink,
+      href: `/sources/artifacts/${target.source_artifact_id}`,
     });
-  }
   if (canManage && target.can_cancel && target.attempt_id)
-    actions.push({
+    more.push({
       key: `cancel-${target.slot}`,
       label: target.shared_download
         ? "Cancel for every book"
@@ -493,84 +482,195 @@ function targetActions(
       danger: true,
       onSelect: () => onTransfer(target.attempt_id!, true),
     });
-  if (canManage && target.can_recheck && target.attempt_id)
-    actions.push({
-      key: `recheck-${target.slot}`,
-      label: qualify("Recheck"),
-      icon: RefreshCw,
-      onSelect: () => onTransfer(target.attempt_id!, false),
-    });
-  if (target.next_action === "selected-release" && target.source_artifact_id)
-    actions.push({
-      key: `release-${target.slot}`,
-      label: qualify("Release"),
-      icon: ExternalLink,
-      href: `/sources/artifacts/${target.source_artifact_id}`,
-    });
-  if (target.inspection_id)
-    actions.unshift({
-      key: `inspect-${target.slot}`,
-      label: qualify(target.needs_review ? "Review files" : "Inspect"),
-      icon: Eye,
-      href: `/organization/inspections?inspection=${target.inspection_id}`,
-    });
-  return actions;
+  return { primary, more, reviewable };
 }
 
 function ActionButton({
   action,
   busy,
-  compact = false,
+  primary = false,
 }: {
   action: RowAction;
   busy: boolean;
-  compact?: boolean;
+  primary?: boolean;
 }) {
   const Icon = action.icon;
   if (action.href)
     return (
       <ContextLink
-        className={compact ? "request-icon-action" : "control-action"}
+        className={primary ? "control-action primary" : "control-action"}
         to={action.href}
-        aria-label={action.label}
-        title={action.label}
       >
         <Icon size={14} aria-hidden />
-        {!compact && action.label}
+        {action.label}
       </ContextLink>
     );
   return (
     <button
       type="button"
       disabled={busy}
-      className={compact ? "request-icon-action" : undefined}
-      aria-label={action.label}
-      title={action.label}
+      className={primary ? "primary" : undefined}
       data-danger={action.danger || undefined}
       onClick={action.onSelect}
     >
       <Icon size={14} aria-hidden />
-      {!compact && action.label}
+      {action.label}
     </button>
+  );
+}
+
+/** Review a finished download in place: accept it into the library, or reject it and search again. */
+function RequestReview({
+  target,
+  onSettled,
+}: {
+  target: Target;
+  onSettled: () => Promise<unknown>;
+}) {
+  const claimKey = useRef(randomUUID());
+  const [inspectionId, setInspectionId] = useState(target.inspection_id || "");
+  const claim = useMutation({
+    mutationFn: async () =>
+      result(
+        await api.POST("/api/acquisition/reviews/{attempt_id}/claim", {
+          params: {
+            path: { attempt_id: target.attempt_id! },
+            header: { "idempotency-key": claimKey.current },
+          },
+          body: { revision: target.review_revision! },
+        }),
+      ),
+    onSuccess: (review) => {
+      if (review.inspection_id) setInspectionId(review.inspection_id);
+    },
+    onSettled,
+  });
+  const claimed = useRef(false);
+  useEffect(() => {
+    if (
+      inspectionId ||
+      claimed.current ||
+      !target.can_claim ||
+      !target.attempt_id ||
+      !target.review_revision
+    )
+      return;
+    claimed.current = true;
+    claim.mutate();
+  }, [
+    inspectionId,
+    target.can_claim,
+    target.attempt_id,
+    target.review_revision,
+  ]);
+  const inspection = useQuery({
+    queryKey: ["inspection", inspectionId],
+    enabled: !!inspectionId,
+    queryFn: async () =>
+      result(
+        await api.GET("/api/organization/inspections/{inspection_id}", {
+          params: { path: { inspection_id: inspectionId } },
+        }),
+      ),
+    refetchInterval: (query) =>
+      query.state.data &&
+      (["queued", "running"].includes(query.state.data.state) ||
+        (query.state.data.download &&
+          !["complete", "cancelled", "held"].includes(
+            query.state.data.download.state,
+          )))
+        ? 2000
+        : false,
+  });
+  return (
+    <div className="request-review" aria-label="Review download">
+      <Notice error={claim.error || inspection.error} />
+      {(claim.isPending || (inspectionId && inspection.isPending)) && (
+        <Loading />
+      )}
+      {claim.isSuccess && !inspectionId && (
+        <p role="status">Dewarr is checking these files again.</p>
+      )}
+      {inspection.data?.download && (
+        <DownloadImportReview inspection={inspection.data} compact />
+      )}
+      {target.attempt_id && <RejectDownload attemptId={target.attempt_id} />}
+    </div>
+  );
+}
+
+/** "Not this book": block the release and search for a replacement with the same requirements. */
+function RejectDownload({ attemptId }: { attemptId: string }) {
+  const cache = useQueryClient();
+  const detail = useQuery({
+    queryKey: ["downloads", "detail", attemptId],
+    queryFn: async ({ signal }) =>
+      result(
+        await api.GET("/api/acquisition/downloads/{attempt_id}", {
+          signal,
+          params: { path: { attempt_id: attemptId } },
+        }),
+      ),
+  });
+  const reject = useMutation({
+    mutationFn: async () =>
+      result(
+        await api.POST("/api/acquisition/recovery/reports", {
+          body: {
+            selection_id: detail.data!.selection_id,
+            reason: "wrong-book",
+            require_approval: false,
+          },
+        }),
+      ),
+    onSuccess: () =>
+      Promise.all(
+        ["requests", "downloads", "activity", "release-blocklist"].map((key) =>
+          cache.invalidateQueries({ queryKey: [key] }),
+        ),
+      ),
+  });
+  if (!detail.data?.can_report_problem) return null;
+  return (
+    <div className="request-reject">
+      {reject.isSuccess ? (
+        <p role="status">
+          Rejected. Dewarr is searching for a different download.
+        </p>
+      ) : (
+        <button
+          type="button"
+          data-danger
+          disabled={reject.isPending}
+          onClick={() => reject.mutate()}
+        >
+          <X size={14} aria-hidden />
+          Not this book, find another
+        </button>
+      )}
+      <Notice error={reject.error} />
+    </div>
   );
 }
 
 function RequestCard({
   request,
   canManage,
+  admin,
   busy,
   onWithdraw,
   onDecide,
   onTransfer,
-  onClaim,
+  refresh,
 }: {
   request: Request;
   canManage: boolean;
+  admin: boolean;
   busy: boolean;
   onWithdraw: (reasonId: string) => void;
   onDecide: (status: "approved" | "declined", download: boolean) => void;
   onTransfer: (attemptId: string, cancel: boolean) => void;
-  onClaim: (target: Target) => void;
+  refresh: () => Promise<unknown>;
 }) {
   const when = shortDate(request.created_at);
   const byline = [
@@ -581,48 +681,35 @@ function RequestCard({
     .filter(Boolean)
     .join(" · ");
   const [withdrawReason, setWithdrawReason] = useState<string | null>(null);
-  const requestActions: RowAction[] = [];
-  if (request.can_decide)
-    requestActions.push({
-      key: "decline",
-      label: "Decline",
-      icon: X,
-      danger: true,
-      onSelect: () => onDecide("declined", false),
-    });
-  if (
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const withdrawals: RowAction[] =
     request.can_withdraw &&
     request.targets.some((target) => target.state !== "satisfied")
-  )
-    for (const reason of request.reasons.filter((item) => item.active))
-      requestActions.push({
-        key: `withdraw-${reason.id}`,
-        label: `Withdraw ${reason.label.toLowerCase()}`,
-        icon: Undo2,
-        onSelect: () => setWithdrawReason(reason.id),
-      });
-  const rows = request.targets.map((target) => {
-    const actions = targetActions(
-      request,
-      target,
-      canManage,
-      onTransfer,
-      onClaim,
-    );
-    const primary = actions.find(
-      (action) => !action.danger && !action.label.startsWith("Recheck"),
-    );
-    const secondary = actions.filter((action) => action !== primary);
-    return { target, primary, secondary };
-  });
-  const [expanded, setExpanded] = useState<string | null>(null);
+      ? request.reasons
+          .filter((item) => item.active)
+          .map((reason) => ({
+            key: `withdraw-${reason.id}`,
+            label: `Withdraw ${reason.label.toLowerCase()}`,
+            icon: Undo2,
+            onSelect: () => setWithdrawReason(reason.id),
+          }))
+      : [];
   return (
     <tbody
       id={`request-${request.id}`}
       aria-label={`${request.work_title} request`}
     >
-      {rows.map(({ target, primary, secondary }, index) => {
+      {request.targets.map((target, index) => {
         const isExpanded = expanded === target.slot;
+        const plan = targetPlan(
+          request,
+          target,
+          canManage,
+          admin,
+          onTransfer,
+          () => setExpanded(isExpanded ? null : target.slot),
+        );
+        const more = [...plan.more, ...(index === 0 ? withdrawals : [])];
         const detailsId = `request-details-${request.id}-${target.slot}`;
         const label = statusLabel(request, target);
         const active = label === "Downloading";
@@ -638,6 +725,16 @@ function RequestCard({
             ? Math.max(0, Math.min(1, target.progress))
             : null;
         const notes = targetNotes(label, target);
+        const telemetry = active
+          ? [
+              transferSpeed(target.download_speed),
+              target.eta_seconds != null
+                ? `${transferTime(target.eta_seconds)} left`
+                : "",
+            ]
+              .filter((part) => part && !part.startsWith("—"))
+              .join(" · ")
+          : "";
         return (
           <Fragment key={target.slot}>
             <tr
@@ -757,121 +854,129 @@ function RequestCard({
                     <span className="muted">—</span>
                   )}
                 </div>
-              </td>
-              <td className="request-metric">
-                {active ? transferSpeed(target.download_speed) : "—"}
-              </td>
-              <td className="request-metric">
-                {active ? transferTime(target.eta_seconds) : "—"}
+                {telemetry && (
+                  <p className="request-transfer-telemetry muted">
+                    {telemetry}
+                  </p>
+                )}
               </td>
               <td>
                 <div className="request-row-tools">
-                  {index === 0 && request.can_decide && (
+                  {index === 0 && request.can_decide ? (
+                    <>
+                      <button
+                        className="primary"
+                        disabled={busy}
+                        onClick={() =>
+                          onDecide("approved", request.can_start_download)
+                        }
+                      >
+                        <Check size={14} aria-hidden />
+                        {request.can_start_download
+                          ? "Approve and download"
+                          : "Approve"}
+                      </button>
+                      <button
+                        disabled={busy}
+                        data-danger
+                        onClick={() => onDecide("declined", false)}
+                      >
+                        <X size={14} aria-hidden />
+                        Decline
+                      </button>
+                    </>
+                  ) : index === 0 && request.can_start_download ? (
                     <button
                       className="primary"
-                      disabled={busy}
-                      onClick={() => onDecide("approved", false)}
-                    >
-                      <Check size={14} aria-hidden />
-                      Approve
-                    </button>
-                  )}
-                  {index === 0 && request.can_start_download && (
-                    <button
                       disabled={busy}
                       onClick={() => onDecide("approved", true)}
                     >
                       <Download size={14} aria-hidden />
                       Download
                     </button>
+                  ) : (
+                    plan.primary && (
+                      <ActionButton action={plan.primary} busy={busy} primary />
+                    )
                   )}
-                  {primary && <ActionButton action={primary} busy={busy} />}
-                  {index === 0 &&
-                    requestActions.map((action) => (
-                      <ActionButton
-                        key={action.key}
-                        action={action}
-                        busy={busy}
-                        compact
-                      />
-                    ))}
-                  {secondary
-                    .filter((action) => action.danger)
-                    .map((action) => (
-                      <ActionButton
-                        key={action.key}
-                        action={action}
-                        busy={busy}
-                        compact
-                      />
-                    ))}
                 </div>
               </td>
             </tr>
             {isExpanded && (
               <tr id={detailsId} className="request-detail-row">
-                <td colSpan={7}>
+                <td colSpan={5}>
                   <div className="request-detail-content">
-                    <div className="request-detail-heading">
-                      <span className="request-medium">
-                        {target.slot === "audio" ? (
-                          <Headphones size={16} aria-hidden />
-                        ) : (
-                          <BookOpen size={16} aria-hidden />
+                    {plan.reviewable && (
+                      <RequestReview target={target} onSettled={refresh} />
+                    )}
+                    {!plan.reviewable && (
+                      <div className="request-detail-summary">
+                        {notes.map((note) => (
+                          <p className="request-target-note" key={note}>
+                            {note}
+                          </p>
+                        ))}
+                        {!!target.shared_books?.length && (
+                          <p className="request-target-note">
+                            Shared with {target.shared_books.join(", ")}
+                          </p>
                         )}
-                        {mediumLabel(target.slot)} details
-                      </span>
-                      <span className="muted">{label}</span>
-                    </div>
-                    <div className="request-detail-summary">
-                      {targetNotes(label, target).map((note) => (
-                        <p className="request-target-note" key={note}>
-                          {note}
-                        </p>
-                      ))}
-                      {!!target.shared_books?.length && (
-                        <p className="request-target-note">
-                          Shared with {target.shared_books.join(", ")}
-                        </p>
-                      )}
-                      {target.can_repair && target.attempt_id && (
-                        <DownloadRepair attemptId={target.attempt_id} />
-                      )}
-                    </div>
-                    <div className="request-detail-sections">
-                      {target.attempt_id &&
-                        target.can_view_download_history && (
-                          <DownloadRecoveryDetails
-                            attemptId={target.attempt_id}
-                            workId={request.work_id}
-                          />
+                        {target.can_repair && target.attempt_id && (
+                          <DownloadRepair attemptId={target.attempt_id} />
                         )}
-                      <RequestDetails request={request} />
-                    </div>
-                    <ul className="request-reasons">
-                      {request.reasons.map((reason) => (
-                        <li key={reason.id}>
-                          {reason.label}
-                          {reason.active ? "" : " · Withdrawn"}
-                          {reason.decision_note && (
-                            <p>{reason.decision_note}</p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {!!secondary.filter((action) => !action.danger).length && (
-                      <div className="actions" aria-label="Request actions">
-                        {secondary
-                          .filter((action) => !action.danger)
-                          .map((action) => (
-                            <ActionButton
-                              key={action.key}
-                              action={action}
-                              busy={busy}
-                            />
-                          ))}
                       </div>
                     )}
+                    {!!more.length && (
+                      <div className="actions" aria-label="Request actions">
+                        {more.map((action) => (
+                          <ActionButton
+                            key={action.key}
+                            action={action}
+                            busy={busy}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <details className="request-disclosure request-advanced">
+                      <summary>
+                        <ChevronRight
+                          size={14}
+                          aria-hidden
+                          className="request-details-chevron"
+                        />
+                        Advanced details
+                      </summary>
+                      <div className="request-detail-sections">
+                        {plan.reviewable && !!notes.length && (
+                          <div className="request-detail-summary">
+                            {notes.map((note) => (
+                              <p className="request-target-note" key={note}>
+                                {note}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {target.attempt_id &&
+                          target.can_view_download_history && (
+                            <DownloadRecoveryDetails
+                              attemptId={target.attempt_id}
+                              workId={request.work_id}
+                            />
+                          )}
+                        <RequestDetails request={request} />
+                        <ul className="request-reasons">
+                          {request.reasons.map((reason) => (
+                            <li key={reason.id}>
+                              {reason.label}
+                              {reason.active ? "" : " · Withdrawn"}
+                              {reason.decision_note && (
+                                <p>{reason.decision_note}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </details>
                   </div>
                 </td>
               </tr>
@@ -881,7 +986,7 @@ function RequestCard({
       })}
       {withdrawReason && (
         <tr>
-          <td colSpan={7} className="request-dialog-cell">
+          <td colSpan={5} className="request-dialog-cell">
             <BookDialog
               title="Withdraw request"
               close={() => setWithdrawReason(null)}

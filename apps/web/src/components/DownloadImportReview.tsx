@@ -16,8 +16,11 @@ type Inspection = components["schemas"]["InspectionView"];
 
 export default function DownloadImportReview({
   inspection,
+  compact = false,
 }: {
   inspection: Inspection;
+  /** Shown inside a request row: the row already names the book, and finishing returns to the list. */
+  compact?: boolean;
 }) {
   const download = inspection.download!;
   const colon = download.title.indexOf(": ");
@@ -54,7 +57,7 @@ export default function DownloadImportReview({
   const done = download.state === "complete";
   const queue = useQuery({
     queryKey: ["requests", "next-review", inspection.id],
-    enabled: done,
+    enabled: done && !compact,
     queryFn: async ({ signal }) =>
       result(
         await api.GET("/api/requests", {
@@ -79,28 +82,36 @@ export default function DownloadImportReview({
     inspection.state === "ready" &&
     blocked;
   return (
-    <section className="download-review" aria-label="Download import">
-      <header className="download-review-book">
-        <div className="download-review-cover">
-          <BookCover
-            title={title}
-            cover={download.cover_url}
-            medium={download.medium === "audio" ? "audio" : "ebook"}
-          />
-        </div>
-        <div className="download-review-identity">
-          <p className="eyebrow">
-            {download.medium === "audio" ? "Audiobook" : "Ebook"}
-          </p>
-          <h2>
-            <ContextLink to={`/books/${download.work_id}`}>{title}</ContextLink>
-          </h2>
-          {subtitle && <p className="download-review-subtitle">{subtitle}</p>}
-          <p className="download-review-author">
-            {download.authors.join(", ")}
-          </p>
-        </div>
-      </header>
+    <section
+      className="download-review"
+      data-compact={compact || undefined}
+      aria-label="Download import"
+    >
+      {!compact && (
+        <header className="download-review-book">
+          <div className="download-review-cover">
+            <BookCover
+              title={title}
+              cover={download.cover_url}
+              medium={download.medium === "audio" ? "audio" : "ebook"}
+            />
+          </div>
+          <div className="download-review-identity">
+            <p className="eyebrow">
+              {download.medium === "audio" ? "Audiobook" : "Ebook"}
+            </p>
+            <h2>
+              <ContextLink to={`/books/${download.work_id}`}>
+                {title}
+              </ContextLink>
+            </h2>
+            {subtitle && <p className="download-review-subtitle">{subtitle}</p>}
+            <p className="download-review-author">
+              {download.authors.join(", ")}
+            </p>
+          </div>
+        </header>
+      )}
       <div className="download-review-status">
         <span
           className={`download-import-state ${done ? "is-complete" : blocked ? "is-held" : "is-active"}`}
@@ -164,7 +175,7 @@ export default function DownloadImportReview({
       ) : (
         <Loading />
       )}
-      {done && (
+      {done && !compact && (
         <div className="download-review-next">
           {nextInspection ? (
             <Link

@@ -12106,7 +12106,10 @@
                     "library",
                     "declined",
                     "withdrawn",
-                    "review"
+                    "review",
+                    "open",
+                    "attention",
+                    "closed"
                   ],
                   "type": "string"
                 },

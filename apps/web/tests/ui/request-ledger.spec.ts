@@ -173,14 +173,17 @@ test("requests show transfer telemetry, review actions and counts in compact row
     name: "Book requests and download activity",
   });
   await expect(
-    table.getByRole("columnheader", { name: "Speed", exact: true }),
+    table.getByRole("columnheader", { name: "Progress", exact: true }),
   ).toBeVisible();
+  await expect(
+    table.getByRole("columnheader", { name: "Speed", exact: true }),
+  ).toHaveCount(0);
   const downloading = table.getByRole("rowgroup", {
     name: "Project Hail Mary request",
   });
   await expect(downloading).toContainText("42%");
   await expect(downloading).toContainText("2.4 MiB/s");
-  await expect(downloading).toContainText("4m");
+  await expect(downloading).toContainText("4m left");
   const review = table.getByRole("rowgroup", { name: "The Martian request" });
   const fulfilled = table.getByRole("rowgroup", { name: "Artemis request" });
   await expect(fulfilled).toContainText("In library");
@@ -225,9 +228,13 @@ test("requests show transfer telemetry, review actions and counts in compact row
   await expect(cover).toHaveJSProperty("naturalWidth", 200);
   expect(transientCoverAttempts).toBe(2);
   await expect(review).toContainText("Needs review");
+  // Review happens in the row, not on another page.
   await expect(
-    review.getByRole("link", { name: "Review files" }),
-  ).toHaveAttribute("href", "/organization/inspections?inspection=inspection");
+    review.getByRole("button", { name: "Review", exact: true }),
+  ).toBeVisible();
+  await expect(review.getByRole("link", { name: "Review files" })).toHaveCount(
+    0,
+  );
   await expect(table).not.toContainText("Acquisition pending");
   await expect(
     page
@@ -235,9 +242,12 @@ test("requests show transfer telemetry, review actions and counts in compact row
       .getByRole("link", { name: "Requests", exact: true }),
   ).toContainText("3");
   const filters = page.getByRole("navigation", { name: "Request filters" });
-  await expect(
-    filters.getByRole("link", { name: "Download review", exact: true }),
-  ).toContainText("1");
+  await expect(filters.getByRole("link")).toHaveText([
+    "Needs you2",
+    "In progress",
+    "In library",
+    "Closed",
+  ]);
   for (const row of await downloading.getByRole("row").all())
     expect((await row.boundingBox())!.height).toBeLessThan(110);
   await expect(
@@ -253,15 +263,22 @@ test("requests show transfer telemetry, review actions and counts in compact row
   await expect(table.getByRole("button", { name: /^Details for/ })).toHaveCount(
     0,
   );
+  // Withdrawing is tucked into the expanded row rather than an icon on every row.
   const undo = downloading.getByRole("button", {
     name: "Withdraw your request",
   });
+  await expect(undo).toHaveCount(0);
+  const downloadingDetails = downloading.getByRole("button", {
+    name: "Downloading: Project Hail Mary audiobook request details",
+  });
+  await downloadingDetails.click();
   await expect(undo).toHaveCount(1);
   await undo.first().click();
   const dialog = page.getByRole("dialog", { name: "Withdraw request" });
   await expect(dialog).toContainText("audiobook and ebook");
   await dialog.getByRole("button", { name: "Keep request" }).click();
   expect(withdrawals).toBe(0);
+  await downloadingDetails.click();
   progress = 0.67;
   await expect(downloading).toContainText("67%", { timeout: 10000 });
   attemptState = "queued";
@@ -301,6 +318,7 @@ test("requests show transfer telemetry, review actions and counts in compact row
     })
     .click();
   await expect(review).toContainText("Files need review");
+  await review.getByText("Advanced details", { exact: true }).click();
   await review
     .getByText("Download history and recovery", { exact: true })
     .click();

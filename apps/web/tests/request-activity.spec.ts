@@ -132,11 +132,14 @@ test("activity requests preserve independent reasons and route missing media to 
       name: "Wanted: Activity Journey Alpha audiobook request details",
     })
     .click();
+  await card.getByText("Advanced details", { exact: true }).click();
   await card.getByText("Request preferences", { exact: true }).click();
   await expect(card).toContainText("Effective request scope");
   await card.getByText("Request preferences", { exact: true }).click();
   expect(writes).toEqual([]);
-  await card.getByRole("link", { name: "Choose release", exact: true }).click();
+  await card
+    .getByRole("link", { name: "Choose download", exact: true })
+    .click();
   await expect(page).toHaveURL(
     new RegExp(`request=${saved.request.id}&slot=audio`),
   );
@@ -173,11 +176,12 @@ test("activity requests preserve independent reasons and route missing media to 
     .getByRole("dialog", { name: "Withdraw request" })
     .getByRole("button", { name: "Withdraw request", exact: true })
     .click();
+  await card.getByText("Advanced details", { exact: true }).click();
   await expect(
     card.getByText("Your request · Withdrawn", { exact: true }),
   ).toBeVisible();
   await expect(
-    card.getByRole("link", { name: "Choose release", exact: true }),
+    card.getByRole("link", { name: "Choose download", exact: true }),
   ).toBeVisible();
   await card
     .getByRole("button", {
@@ -190,15 +194,15 @@ test("activity requests preserve independent reasons and route missing media to 
     .getByRole("button", { name: "Withdraw request", exact: true })
     .click();
   await expect(card).toHaveCount(0);
-  await page.getByRole("link", { name: "Withdrawn", exact: true }).click();
+  await page.getByRole("link", { name: "Closed", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "Withdrawn", exact: true }),
+    page.getByRole("link", { name: "Closed", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await requests.locator("tbody").last().scrollIntoViewIfNeeded();
   await expect(card).toContainText("Audiobook");
   await expect(card.getByText("Withdrawn", { exact: true })).toBeVisible();
   await expect(
-    card.getByRole("link", { name: "Choose release", exact: true }),
+    card.getByRole("link", { name: "Choose download", exact: true }),
   ).toHaveCount(0);
   await card
     .getByRole("link", { name: "Activity Journey Alpha", exact: true })
@@ -211,7 +215,7 @@ test("activity requests preserve independent reasons and route missing media to 
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Menu", exact: true }).click();
   await page.getByRole("link", { name: "Requests", exact: true }).click();
-  await page.getByRole("link", { name: "Withdrawn", exact: true }).click();
+  await page.getByRole("link", { name: "Closed", exact: true }).click();
   await expect(card).toBeVisible();
   await page.route("**/api/requests?*", (route) =>
     route.fulfill({
@@ -247,15 +251,13 @@ test("activity requests preserve independent reasons and route missing media to 
       links.map((link) => link.getBoundingClientRect().top),
     );
   expect(new Set(filterPositions).size).toBe(1);
-  await filters.getByRole("link", { name: "Downloading", exact: true }).click();
+  await filters.getByRole("link", { name: "In library", exact: true }).click();
   await expect(
-    filters.getByRole("link", { name: "Downloading", exact: true }),
+    filters.getByRole("link", { name: "In library", exact: true }),
   ).toHaveAttribute("aria-current", "page");
-  await filters
-    .getByRole("link", { name: "Download review", exact: true })
-    .click();
+  await filters.getByRole("link", { name: "Needs you", exact: true }).click();
   await expect(
-    filters.getByRole("link", { name: "Download review", exact: true }),
+    filters.getByRole("link", { name: "Needs you", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await expect(
     page.getByRole("region", { name: "Requests", exact: true }),

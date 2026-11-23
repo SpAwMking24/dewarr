@@ -6,6 +6,9 @@ export const requestFilterIds = [
   "declined",
   "withdrawn",
   "review",
+  "open",
+  "attention",
+  "closed",
 ] as const;
 
 export type RequestFilter = (typeof requestFilterIds)[number];

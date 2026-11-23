@@ -22757,6 +22757,9 @@ export interface operations {
               | "declined"
               | "withdrawn"
               | "review"
+              | "open"
+              | "attention"
+              | "closed"
             )
           | null;
         sort?: "newest" | "title";

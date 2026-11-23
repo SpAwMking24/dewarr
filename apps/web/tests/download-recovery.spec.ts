@@ -177,6 +177,7 @@ test("recovery settings preserve source overrides and manage the release blockli
       name: /Recovery activity book audiobook request details$/,
     })
     .click();
+  await page.getByText("Advanced details", { exact: true }).click();
   await page
     .getByText("Download history and recovery", { exact: true })
     .click();
