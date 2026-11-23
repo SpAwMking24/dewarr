@@ -28,6 +28,7 @@ from app.domain.visibility import visible_origin_work
 from app.domain.work_graph import canonical_map
 from app.jobs.queue import enqueue
 
+PERMANENT_FAILURE_BACKOFF = timedelta(days=7)
 PROVIDER = "hardcover"
 SCAN_TASK = "series.library_scan"
 MAX_PER_RUN = 2
@@ -268,7 +269,10 @@ def _recent_failure(operation, now):
     if not operation or operation.status not in {"failed", "cancelled"}:
         return False
     changed = operation.updated_at or operation.created_at
-    return changed > now - FAILURE_BACKOFF
+    # A merged or removed series (issue #81) repeats the same failure forever;
+    # check it weekly instead of every 15 minutes for every owner.
+    permanent = (operation.payload or {}).get("permanent") is True
+    return changed > now - (PERMANENT_FAILURE_BACKOFF if permanent else FAILURE_BACKOFF)
 
 
 async def baseline_loaded(db, user, refs):

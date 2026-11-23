@@ -188,6 +188,8 @@ async def run(operation_id):
                 **operation.payload,
                 "lease_until": None,
                 "failures": failures,
+                # Merged or removed provider records will not recover by retrying.
+                "permanent": error.kind in {FailureKind.UNSUPPORTED, FailureKind.NOT_FOUND},
                 "retry_at": (
                     datetime.now(UTC) + timedelta(seconds=max(error.retry_after or 60, 60))
                 ).isoformat()
