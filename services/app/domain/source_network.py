@@ -16,6 +16,9 @@ from app.domain.operations import transaction_lock
 from app.security import decrypt_secrets, encrypt_secrets
 
 REQUEST_INTERVAL = 2.0
+# Queue behind earlier requests for up to this long before reporting a cooldown.
+# A short wait here turned ordinary bursts (one search per book) into errors.
+QUEUE_WAIT = 20
 LEASE_SECONDS = 90
 logger = logging.getLogger(__name__)
 
@@ -77,7 +80,7 @@ async def source_call(
             )
         due = max(row.next_request_at or now, row.blocked_until or now, now)
         wait = (due - now).total_seconds()
-        if wait > 5:
+        if wait > QUEUE_WAIT:
             raise AdapterError(
                 FailureKind.RATE_LIMIT,
                 "MAM is cooling down. Wait before retrying.",

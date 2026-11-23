@@ -17,6 +17,9 @@ from app.domain.source_network import check_actor
 from app.security import decrypt_secrets
 
 REQUEST_INTERVAL = 4.0
+# Queue behind earlier requests for up to this long before reporting a cooldown.
+# A short wait here turned ordinary bursts (one search per book) into errors.
+QUEUE_WAIT = 20
 
 
 async def abb_call(
@@ -42,7 +45,7 @@ async def abb_call(
             )
         due = max(now, row.next_request_at or now, row.blocked_until or now)
         wait = (due - now).total_seconds()
-        if wait > 5:
+        if wait > QUEUE_WAIT:
             raise AdapterError(
                 FailureKind.RATE_LIMIT, "AudiobookBay is cooling down.", retry_after=math.ceil(wait)
             )

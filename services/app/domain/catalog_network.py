@@ -22,6 +22,9 @@ from app.domain.catalog_cache_policy import lifetime
 from app.domain.operations import transaction_lock
 
 REQUEST_INTERVAL = 1.1
+# Queue behind earlier requests for up to this long before reporting a cooldown.
+# A short wait here turned ordinary bursts (one search per book) into errors.
+QUEUE_WAIT = 20
 _secret_query = contextvars.ContextVar("catalog_secret_query", default=False)
 
 
@@ -138,7 +141,7 @@ class CatalogGateway:
                 db.add(budget)
             due = max(now, budget.next_request_at, budget.blocked_until or now)
             wait = (due - now).total_seconds()
-            if wait > 5:
+            if wait > QUEUE_WAIT:
                 raise AdapterError(
                     FailureKind.RATE_LIMIT,
                     "This provider is cooling down. Try again later.",
