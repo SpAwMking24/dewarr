@@ -50,7 +50,7 @@ def series_note_agrees(note, series, *, require_position=False):
             continue
         remainder = note[: match.start()] + " " + note[match.end() :]
         remainder = re.sub(
-            r"\b(?:a|an|the|trilogy|duology|quartet|saga|series|cycle|book|bk|volume|vol)\b\.?",
+            r"\b(?:a|an|the|trilogy|duology|quartet|adventure|saga|series|cycle|book|bk|volume|vol)\b\.?",
             " ",
             remainder,
         ).strip(" ,:;#")
@@ -75,7 +75,16 @@ def title_outside_series_note(value, work):
     for boundary in re.finditer(r"\(|:", value):
         # Compare the complete title before interpreting its annotation. Keep
         # connector/punctuation equivalence without omitting actual subtitles.
-        if exact_title_key(value[: boundary.start()]) != exact_title_key(title):
+        file_title = value[: boundary.start()]
+        file_title_key = exact_title_key(file_title)
+        catalog_title_key = exact_title_key(title)
+        without_article = re.sub(
+            r"^(?:a|an|the)\s+", "", file_title, flags=re.I
+        )
+        if (
+            file_title_key != catalog_title_key
+            and exact_title_key(without_article) != catalog_title_key
+        ):
             continue
         suffix = value[boundary.start() :]
         if suffix.startswith("(") and suffix.endswith(")"):

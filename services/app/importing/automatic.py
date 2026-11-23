@@ -324,7 +324,26 @@ def selected_audio_reason(group, omitted_audio_paths):
     return "Audio files from this recording were omitted; review completeness before importing"
 
 
-def content_reason(group, files, release, *, omitted_audio_paths=None):
+def catalogue_sequence_title(titles, catalog):
+    """Use a short catalogue title only when every embedded title agrees."""
+    from app.domain.series_identity import title_outside_series_note
+    from app.domain.title_matching import compatible_title
+
+    title = catalog.get("title") if isinstance(catalog, dict) else None
+    if not title or not titles:
+        return None
+    if all(
+        compatible_title(value, title)
+        or title_outside_series_note(value, catalog) is not None
+        for value in titles
+    ):
+        return title
+    return None
+
+
+def content_reason(
+    group, files, release, *, omitted_audio_paths=None, catalog_title=None
+):
     """Bounded completeness heuristic, independent of the stricter identity match.
 
     A complete associated transfer with a valid whole-book container and no partial
@@ -372,7 +391,8 @@ def content_reason(group, files, release, *, omitted_audio_paths=None):
     from app.importing.audio_order import numbered_sequence
 
     numbered = numbered_sequence(
-        (file["path"] for file in selected), title=getattr(group, "title", None)
+        (file["path"] for file in selected),
+        title=catalog_title or getattr(group, "title", None),
     )
     totals, tracks, discs = set(), [], set()
     for index, file in enumerate(selected):
@@ -421,14 +441,18 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
             item for item in members if str(item.id) in row.evidence["authorized_selection_ids"]
         ]
     works, wanted, work_members = set(), {}, {}
+    catalog_works, catalog_owner_ids = {}, {}
     for item in members:
-        work_id = (await canonical_work(db, UUID(item.frozen["origin_work_id"]))).id
+        catalog_work = await canonical_work(db, UUID(item.frozen["origin_work_id"]))
+        work_id = catalog_work.id
+        catalog_works[work_id] = catalog_work
         works.add(work_id)
         work_members.setdefault(work_id, []).append(item)
         try:
             owner, intent, _ = await download_reviews.requester_authority(db, item)
         except HTTPException:
             continue
+        catalog_owner_ids.setdefault(work_id, set()).add(owner.id)
         outcomes = await assess(
             db, owner, intent.work_id, RequestSpec.model_validate(intent.specification)
         )
@@ -460,8 +484,34 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         match = await match_group(
             db, inspection.snapshot, grouping_revision, group, inspection=inspection
         )
+        candidate = next(
+            (item for item in match.candidates if item.version_id == match.selected_version_id),
+            None,
+        )
+        catalog_title = candidate.title if candidate else None
+        if len(grouping.groups) == 1 and len(works) == 1:
+            requested_work_id = next(iter(works))
+            owner_ids = catalog_owner_ids.get(requested_work_id, set())
+            if len(owner_ids) == 1:
+                from app.domain.book_sources import identity as catalog_identity
+
+                catalog = await catalog_identity(
+                    db,
+                    catalog_works[requested_work_id],
+                    next(iter(owner_ids)),
+                )
+                verified_title = catalogue_sequence_title(
+                    match.evidence.titles, catalog
+                )
+                if verified_title:
+                    catalog_title = verified_title
+
         reason = content_reason(
-            group, files, selection.frozen["release"], omitted_audio_paths=omitted_audio_paths
+            group,
+            files,
+            selection.frozen["release"],
+            omitted_audio_paths=omitted_audio_paths,
+            catalog_title=catalog_title,
         )
         from app.importing.collection_recordings import conflict as recording_conflict
 
@@ -470,10 +520,6 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
             release_rejection = True
         if not reason:
             unresolved.append(match)
-        candidate = next(
-            (item for item in match.candidates if item.version_id == match.selected_version_id),
-            None,
-        )
         linked = None
         if (
             not reason

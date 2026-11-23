@@ -151,3 +151,41 @@ def test_supported_layout_still_requires_structured_author_agreement_and_catalog
     assert authors(title, authors=["Other Writer"]) == []
     assert authors(title, position=None) == []
     assert authors(title) == ["Stephen King"]
+
+
+@pytest.mark.parametrize(
+    ("note", "position", "accepted"),
+    [
+        ("An Isaac Bell Adventure, Book 11", "11", True),
+        ("An Isaac Bell Adventure, Book 10", "11", False),
+        ("An unrelated Adventure, Book 11", "11", False),
+        ("An Isaac Bell Adventure, Book 11", "10", False),
+    ],
+)
+def test_adventure_series_notes_require_exact_catalogue_series_and_position(
+    note, position, accepted
+):
+    assert series_note_agrees(
+        note, [{"name": "Isaac Bell", "position": position}], require_position=True
+    ) is accepted
+
+
+def test_series_subtitle_accepts_leading_article_without_relaxing_title_match():
+    from app.domain.series_identity import title_outside_series_note
+
+    work = {
+        "title": "Titanic Secret",
+        "series": [{"name": "Isaac Bell", "position": "11"}],
+    }
+
+    assert title_outside_series_note(
+        "The Titanic Secret: An Isaac Bell Adventure, Book 11", work
+    ) == "titanic secret"
+
+    assert title_outside_series_note(
+        "The Other Titanic: An Isaac Bell Adventure, Book 11", work
+    ) is None
+
+    assert title_outside_series_note(
+        "The Titanic Secret: An Isaac Bell Adventure, Book 10", work
+    ) is None

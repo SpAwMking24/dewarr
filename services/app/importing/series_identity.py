@@ -71,7 +71,14 @@ async def corroborated_titles(db, work, selection, inspection, group, facts, kno
         manifest_matches(selection, inspection)
     except HTTPException:
         return ()
-    if content_reason(group, files, release):
+    from app.domain.book_sources import identity as catalog_identity
+    from app.importing.automatic import catalogue_sequence_title
+
+    catalog = await catalog_identity(db, work, selection.owner_id)
+    catalog_title = catalogue_sequence_title(facts.titles, catalog)
+    if content_reason(
+        group, files, release, catalog_title=catalog_title
+    ):
         return ()
     rows = list(
         await db.scalars(

@@ -21,6 +21,23 @@ MULTIPLE_IDENTIFIERS = "Multiple edition identifiers require review"
 UNSUPPORTED_IDENTIFIERS = "Catalog identifiers do not support all embedded assertions"
 
 
+def _author_credit_matches(names, authors, *, credited, title_agrees):
+    """Match author credits, including comma-separated audiobook artist tags."""
+    if not names:
+        return False
+    expected = set(authors)
+    variants = [set(names)]
+    if len(names) == 1 and "," in names[0]:
+        parts = [normalized(part.strip()) for part in names[0].split(",")]
+        if len(parts) > 1 and all(parts) and set(parts) <= expected:
+            variants.append(set(parts))
+    return any(
+        variant <= expected
+        or (credited and title_agrees and expected <= variant)
+        for variant in variants
+    )
+
+
 def request_file_conflicts(
     work, release, facts, *, series=(), reviewed_collection=False, verified_titles=()
 ):
@@ -43,8 +60,9 @@ def request_file_conflicts(
     if facts.titles and not title_agrees:
         conflicts.append("The files name a different book")
     if any(
-        not (names and set(names) <= set(authors))
-        and not (credited and title_agrees and set(authors) <= set(names))
+        not _author_credit_matches(
+            names, authors, credited=credited, title_agrees=title_agrees
+        )
         for names in facts.authors
     ):
         conflicts.append("The files name a different author")

@@ -402,3 +402,80 @@ def test_linked_download_accepts_incomplete_catalogue_authors_without_unrelated_
 
     conflicts = request_file_conflicts(work, release, facts)
     assert ("The files name a different author" not in conflicts) is expected
+
+
+@pytest.mark.parametrize(
+    ("catalogue_authors", "file_authors", "expected"),
+    [
+        (
+            ["Clive Cussler", "Jack Du Brul"],
+            [["clive cussler, jack du brul"]],
+            True,
+        ),
+        (
+            ["Smith, Jane"],
+            [["smith, jane"]],
+            True,
+        ),
+        (
+            ["Clive Cussler", "Jack Du Brul"],
+            [["clive cussler, unrelated author"]],
+            False,
+        ),
+    ],
+)
+def test_comma_separated_audio_author_credits_match_only_catalogued_authors(
+    catalogue_authors, file_authors, expected
+):
+    from app.importing.linked_download import request_file_conflicts
+
+    work = SimpleNamespace(
+        title="Titanic Secret",
+        authors=catalogue_authors,
+        language="en",
+        metadata_fields={},
+    )
+    facts = MatchEvidence(
+        titles=["the titanic secret"],
+        authors=file_authors,
+    )
+    release = {"source": "audiobookbay", "title": work.title}
+
+    conflicts = request_file_conflicts(work, release, facts)
+    assert ("The files name a different author" not in conflicts) is expected
+
+
+@pytest.mark.parametrize(
+    ("file_title", "position", "expected"),
+    [
+        ("The Titanic Secret: An Isaac Bell Adventure, Book 11", "11", True),
+        ("The Titanic Secret: An Isaac Bell Adventure, Book 10", "11", False),
+        ("The Titanic Secret: An Isaac Bell Adventure, Book 11", "10", False),
+        ("The Titanic Secret: An Unrelated Adventure, Book 11", "11", False),
+    ],
+)
+def test_linked_download_matches_catalogued_adventure_series_subtitle(
+    file_title, position, expected
+):
+    from app.importing.linked_download import agrees_with_request, request_file_conflicts
+
+    work = SimpleNamespace(
+        title="Titanic Secret",
+        authors=["Clive Cussler", "Jack Du Brul"],
+        language="en",
+        metadata_fields={},
+    )
+    release = {
+        "source": "audiobookbay",
+        "title": work.title,
+        "authors": work.authors,
+    }
+    facts = MatchEvidence(
+        titles=[file_title],
+        authors=[["clive cussler", "jack du brul"]],
+    )
+    series = [{"name": "Isaac Bell", "position": position}]
+
+    assert agrees_with_request(work, release, facts, series=series) is expected
+    conflicts = request_file_conflicts(work, release, facts, series=series)
+    assert ("The files name a different book" not in conflicts) is expected

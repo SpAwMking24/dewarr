@@ -107,6 +107,52 @@ def test_completed_manifest_numbered_audio_without_totals(names, tags, accepted)
     assert (content_reason(group, files, {"title": "A whole book"}) is None) is accepted
 
 
+@pytest.mark.parametrize(
+    "file_title,accepted",
+    [
+        ("The Titanic Secret: An Isaac Bell Adventure, Book 11", True),
+        ("The Titanic Secret: An Isaac Bell Adventure, Book 10", False),
+        ("The Titanic Secret: An Unrelated Adventure, Book 11", False),
+        ("The Other Titanic: An Isaac Bell Adventure, Book 11", False),
+    ],
+)
+def test_catalogue_series_title_is_required_for_short_sequence_title(file_title, accepted):
+    from app.importing.automatic import catalogue_sequence_title
+
+    catalog = {
+        "title": "Titanic Secret",
+        "series": [{"name": "Isaac Bell", "position": "11"}],
+    }
+    assert (
+        catalogue_sequence_title([file_title], catalog) == "Titanic Secret"
+    ) is accepted
+
+
+@pytest.mark.parametrize(
+    "catalog_title,accepted",
+    [("Titanic Secret", True), ("An unrelated book", False)],
+)
+def test_numbered_titanic_tracks_use_selected_catalogue_title(catalog_title, accepted):
+    names = [f"The Titanic Secret - {i:02}.mp3" for i in range(1, 45)]
+    files = {
+        name: {
+            "path": name,
+            "state": "inspected",
+            "extension": "mp3",
+            "technical": {"tags": {"track": f"{i:02}", "disc": "1"}},
+        }
+        for i, name in enumerate(names, 1)
+    }
+    group = SimpleNamespace(
+        medium="audio",
+        title="The Titanic Secret: An Isaac Bell Adventure, Book 11",
+        files=[SimpleNamespace(path=name) for name in names],
+    )
+    reason = content_reason(
+        group, files, {"title": "Titanic Secret"}, catalog_title=catalog_title
+    )
+    assert (reason is None) is accepted
+
 @pytest.mark.parametrize("count", [1, 2])
 @pytest.mark.parametrize("extension", ["mp3", "m4b"])
 def test_selected_audio_prefix_never_establishes_whole_book_content(count, extension):

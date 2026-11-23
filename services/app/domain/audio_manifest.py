@@ -17,10 +17,16 @@ def numbered_positions(stems, title=""):
     Accept equivalent title spellings, not other book titles or arbitrary suffixes.
     Completeness still requires inspection of the downloaded recording.
     """
-    prefix = exact_title_key(title) + " "
+    title_key = exact_title_key(title)
+    prefixes = [title_key + " "] if title_key else []
+    if title_key and not title_key.startswith("the "):
+        prefixes.append("the " + title_key + " ")
+    prefixes.append("")
     positions, seen = [], set()
     for stem in stems:
-        name = exact_title_key(stem).removeprefix(prefix)
+        key = exact_title_key(stem)
+        prefix = next((value for value in prefixes if key.startswith(value)), "")
+        name = key[len(prefix):]
         match = TRACK.fullmatch(name)
         if not match:
             return []

@@ -60,3 +60,15 @@ def test_named_track_totals_require_one_complete_recording():
         ["Disc 1/Book 01 of 02.mp3", "Disc 2/Book 02 of 02.mp3"],
     ]:
         assert numbered_sequence(paths) == []
+
+
+def test_numbered_sequence_accepts_leading_article_in_catalogued_title():
+    from app.importing.audio_order import numbered_sequence
+
+    assert numbered_sequence(
+        [
+            "The Titanic Secret - 02.mp3",
+            "The Titanic Secret - 01.mp3",
+        ],
+        title="Titanic Secret",
+    ) == [2, 1]
