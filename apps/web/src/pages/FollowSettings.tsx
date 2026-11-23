@@ -162,7 +162,8 @@ export default function FollowSettings() {
 
 function FollowEditor({ follow }: { follow: Follow }) {
   const cache = useQueryClient();
-  const [, setParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const downloadAll = params.get("download") === "all";
   const [filters, setFilters] = useState(follow.filters);
   const [offset, setOffset] = useState(0);
   const [selectedOffset, setSelectedOffset] = useState(0);
@@ -321,6 +322,7 @@ function FollowEditor({ follow }: { follow: Follow }) {
             key={`${follow.list_id}:${follow.subscription.last_success_at}`}
             listId={follow.list_id}
             follow
+            downloadAll={downloadAll}
           />
           {follow.mode === "manual" ? (
             <ListRequests listId={follow.list_id} />
@@ -330,9 +332,15 @@ function FollowEditor({ follow }: { follow: Follow }) {
         <p>
           Acquisition stays paused until a complete catalog is verified and you
           activate a policy.
+          {downloadAll
+            ? " Download all will be preselected once the author's books have loaded."
+            : ""}
         </p>
       )}
-      <section className="panel editor" aria-label="Books selected for acquisition">
+      <section
+        className="panel editor"
+        aria-label="Books selected for acquisition"
+      >
         <h3>Selected in last activation</h3>
         {selectedBooks.isPending ? (
           <Loading />
@@ -347,7 +355,7 @@ function FollowEditor({ follow }: { follow: Follow }) {
                 {new Date(selectedBooks.data.activated_at).toLocaleString()}
               </p>
             ) : null}
-            {selectedBooks.data?.records.map((book) => (
+            {(selectedBooks.data?.records ?? []).map((book) => (
               <article className="source-attribution" key={book.work_id}>
                 <div>
                   <Link to={`/books/${book.work_id}`}>{book.title}</Link>
@@ -366,7 +374,9 @@ function FollowEditor({ follow }: { follow: Follow }) {
             <div className="button-row">
               {selectedOffset > 0 ? (
                 <button
-                  onClick={() => setSelectedOffset(Math.max(0, selectedOffset - 25))}
+                  onClick={() =>
+                    setSelectedOffset(Math.max(0, selectedOffset - 25))
+                  }
                 >
                   Previous selected books
                 </button>

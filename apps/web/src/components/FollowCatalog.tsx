@@ -4,9 +4,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Download, Plus } from "lucide-react";
 import { api, ApiError, result } from "../api/client";
 import type { components } from "../api/schema";
 
@@ -38,6 +38,9 @@ export default function FollowCatalog({
   name: string;
 }) {
   const followedLink = useRef<HTMLAnchorElement>(null);
+  const navigate = useNavigate();
+  const downloadAllHref = (listId: string) =>
+    "/following?list=" + listId + "&download=all";
   const cache = useQueryClient();
   const query = useFollowing();
   const mutationKey = ["follow-catalog", kind, externalId];
@@ -47,7 +50,7 @@ export default function FollowCatalog({
   );
   const follow = useMutation({
     mutationKey,
-    mutationFn: async () =>
+    mutationFn: async (_downloadAll?: boolean) =>
       result(
         await api.POST("/api/following", {
           body: {
@@ -58,7 +61,8 @@ export default function FollowCatalog({
           },
         }),
       ),
-    onSuccess: (value) => {
+    onSuccess: (value, downloadAll?: boolean) => {
+      if (downloadAll) navigate(downloadAllHref(value.list_id));
       cache.setQueryData<CatalogFollow[]>(["following"], (old) => [
         ...(old || []).filter((f) => f.list_id !== value.list_id),
         value,
@@ -83,12 +87,22 @@ export default function FollowCatalog({
           <Check size={14} aria-hidden="true" /> Following
           {!existing.subscription.enabled ? " · Updates paused" : ""}
         </Link>
-      ) : (
+      ) : null}
+      {existing && kind === "author" ? (
+        <Link
+          className="reader-action-link"
+          to={downloadAllHref(existing.list_id)}
+          aria-label={"Download all books by " + name}
+        >
+          <Download size={14} aria-hidden="true" /> Download all
+        </Link>
+      ) : null}
+      {existing ? null : (
         <button
           type="button"
           className="primary"
           disabled={query.isPending || !!query.error || saving}
-          onClick={() => follow.mutate()}
+          onClick={() => follow.mutate(false)}
         >
           <Plus size={14} aria-hidden="true" />
           {saving
@@ -98,6 +112,15 @@ export default function FollowCatalog({
               : "Follow future additions"}
         </button>
       )}
+      {!existing && kind === "author" ? (
+        <button
+          type="button"
+          disabled={query.isPending || !!query.error || saving}
+          onClick={() => follow.mutate(true)}
+        >
+          <Download size={14} aria-hidden="true" /> Follow and download all
+        </button>
+      ) : null}
       {follow.isSuccess && existing && (
         <span className="follow-feedback" role="status">
           Following {name}. <Link to={href}>View follow</Link>

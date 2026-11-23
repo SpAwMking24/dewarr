@@ -55,7 +55,7 @@ export default function SourceReleaseDetails({
     queryFn: async () => result(await api.GET("/api/downloaders")),
   });
 
-  const qbitClients = (clients.data || []).filter(
+  const qbitClients = (Array.isArray(clients.data) ? clients.data : []).filter(
     (client) => client.enabled && client.kind === "qbittorrent",
   );
 
@@ -78,9 +78,7 @@ export default function SourceReleaseDetails({
     onSuccess: (artifact) => {
       const context = new URLSearchParams(params);
       context.set("work", workId);
-      navigate(
-        `/sources/artifacts/${artifact.id}?${context.toString()}`,
-      );
+      navigate(`/sources/artifacts/${artifact.id}?${context.toString()}`);
     },
   });
   const detail = useQuery({
@@ -155,7 +153,9 @@ export default function SourceReleaseDetails({
                     onChange={(event) => setDownloader(event.target.value)}
                     disabled={inspect.isPending}
                   >
-                    <option value="">Choose only if redirected to a magnet</option>
+                    <option value="">
+                      Choose only if redirected to a magnet
+                    </option>
                     {qbitClients.map((client) => (
                       <option key={client.id} value={client.id}>
                         {client.name}
@@ -166,7 +166,11 @@ export default function SourceReleaseDetails({
               )}
               <button
                 type="button"
-                disabled={!item.current_connection || !original.acquisition_supported || inspect.isPending}
+                disabled={
+                  !item.current_connection ||
+                  !original.acquisition_supported ||
+                  inspect.isPending
+                }
                 onClick={() => inspect.mutate()}
               >
                 {inspect.isPending
@@ -219,7 +223,8 @@ export default function SourceReleaseDetails({
         )}
         {detail.error && (
           <p className="notice">
-            Could not refresh additional details. Showing the saved search result.{" "}
+            Could not refresh additional details. Showing the saved search
+            result.{" "}
             <button onClick={() => detail.refetch()}>Retry details</button>
           </p>
         )}

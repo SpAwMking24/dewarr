@@ -4,7 +4,7 @@ import PreferenceFields, {
   EffectivePreferences,
   type Overrides,
 } from "./PreferenceFields";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api, result } from "../api/client";
@@ -25,9 +25,12 @@ type Input = components["schemas"]["ListPolicyInput"];
 export default function ListPolicy({
   listId,
   follow = false,
+  downloadAll = false,
 }: {
   listId: string;
   follow?: boolean;
+  /** Preselect automatic mode and "all missing books" (author "Download all"). */
+  downloadAll?: boolean;
 }) {
   const cache = useQueryClient();
   const path = { list_id: listId };
@@ -61,7 +64,9 @@ export default function ListPolicy({
     cache.setQueryData(["list-policy", listId], value);
     void cache.invalidateQueries({ queryKey: ["following"] });
     void cache.invalidateQueries({ queryKey: ["list-policy-books", listId] });
-    void cache.invalidateQueries({ queryKey: ["list-policy-selected", listId] });
+    void cache.invalidateQueries({
+      queryKey: ["list-policy-selected", listId],
+    });
   };
   const pause = useMutation({
     mutationFn: async () =>
@@ -110,6 +115,7 @@ export default function ListPolicy({
             follow={follow}
             policy={policy.data}
             saved={saved}
+            downloadAll={downloadAll && !policy.data?.active}
           />
         </>
       ) : null}
@@ -168,14 +174,18 @@ function PolicyEditor({
   follow,
   policy,
   saved,
+  downloadAll = false,
 }: {
   listId: string;
   follow: boolean;
   policy: Policy | null;
   saved: (value: Policy) => void;
+  downloadAll?: boolean;
 }) {
   const [mode, setMode] = useState<Input["mode"]>(
-    (policy?.configuration.mode as Input["mode"]) || "browse",
+    downloadAll
+      ? "automatic"
+      : (policy?.configuration.mode as Input["mode"]) || "browse",
   );
   const [medium, setMedium] = useState<Input["specification"]["mode"]>(
     policy?.configuration.scope_options?.mode ||
@@ -229,6 +239,15 @@ function PolicyEditor({
   const [selectAllMissing, setSelectAllMissing] = useState(false);
   const [selectionValid, setSelectionValid] = useState(false);
   const [contentRevision, setContentRevision] = useState<string>();
+  const pendingDownloadAll = useRef(downloadAll);
+  useEffect(() => {
+    // The checkbox unlocks once the current book list has been verified.
+    if (pendingDownloadAll.current && selectionValid && contentRevision) {
+      pendingDownloadAll.current = false;
+      setSelectAllMissing(true);
+      setSelected([]);
+    }
+  }, [selectionValid, contentRevision]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const key = useRef(randomUUID());
@@ -527,8 +546,8 @@ function PolicyEditor({
                   Select all missing books in this list
                 </label>
                 <p className="muted">
-                  This uses your Desired media setting above. Only books with
-                  at least one requested format marked wanted are selected.
+                  This uses your Desired media setting above. Only books with at
+                  least one requested format marked wanted are selected.
                 </p>
                 <details>
                   <summary>
@@ -590,8 +609,8 @@ function PolicyEditor({
           </p>
           {receipt.data.selected > 0 && (
             <p>
-              These selected books are frozen into this preview. Activation
-              will use this exact selection.
+              These selected books are frozen into this preview. Activation will
+              use this exact selection.
             </p>
           )}
           <p>

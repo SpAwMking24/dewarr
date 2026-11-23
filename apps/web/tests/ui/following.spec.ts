@@ -341,6 +341,9 @@ test("author follow verifies catalog, defaults to future only, and keeps exclusi
     .getByRole("button", { name: "Follow author", exact: true })
     .click();
   await expect(page).toHaveURL(/authors\/hardcover\/9$/);
+  await expect(
+    page.getByRole("link", { name: "Download all books by Ursula K. Le Guin" }),
+  ).toHaveAttribute("href", /\/following\?list=.+&download=all$/);
   await page
     .getByRole("link", { name: "Manage following Ursula K. Le Guin" })
     .click();

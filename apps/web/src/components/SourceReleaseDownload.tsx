@@ -65,9 +65,9 @@ export default function SourceReleaseDownload({
     enabled: source === "prowlarr",
     queryFn: async () => result(await api.GET("/api/downloaders")),
   });
-  const metadataDownloaders = (metadataClients.data || []).filter(
-    (client) => client.enabled && client.kind === "qbittorrent",
-  );
+  const metadataDownloaders = (
+    Array.isArray(metadataClients.data) ? metadataClients.data : []
+  ).filter((client) => client.enabled && client.kind === "qbittorrent");
   const inspect = useMutation({
     mutationFn: async () =>
       result(
