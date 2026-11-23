@@ -46,7 +46,6 @@ const tabs = [
   ["authors", "Authors"],
   ["reviews", "Reviews"],
   ["downloads", "Downloads"],
-  ["sources", "Sources"],
 ] as const;
 
 export default function BookDetail({
@@ -75,8 +74,11 @@ function BookDetailContent({
       ? "library"
       : location.hash.slice(1);
   const selected = params.get("tab") || legacy || "overview";
-  const tab =
-    selected === "manage" || tabs.some(([key]) => key === selected)
+  // Sources live inside the Downloads tab; ?tab=sources opens the release list there.
+  const releasesOpen = selected === "sources";
+  const tab = releasesOpen
+    ? "downloads"
+    : selected === "manage" || tabs.some(([key]) => key === selected)
       ? selected
       : "overview";
   const cache = useQueryClient();
@@ -557,8 +559,7 @@ function BookDetailContent({
               <Link to={href("manage")}>Book metadata →</Link>
             </section>
           ))}
-        {tab === "downloads" && <BookDownloads workId={id} />}
-        {tab === "sources" && (
+        {tab === "downloads" && releasesOpen && (
           <section className="book-tab-section" aria-label="Download sources">
             <Suspense fallback={<Loading />}>
               <BookSources
@@ -568,6 +569,16 @@ function BookDetailContent({
               />
             </Suspense>
           </section>
+        )}
+        {tab === "downloads" && (
+          <BookDownloads
+            workId={id}
+            otherReleases={
+              canEdit && !releasesOpen && !unreleased
+                ? `/books/${id}?${new URLSearchParams({ tab: "sources", releaseAll: "1" })}`
+                : undefined
+            }
+          />
         )}
         {tab === "manage" && (
           <section className="book-tab-section book-management">

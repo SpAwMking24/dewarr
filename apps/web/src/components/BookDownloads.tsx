@@ -4,7 +4,14 @@ import InfiniteScroll from "./InfiniteScroll";
 import { Link } from "react-router-dom";
 import { api, result } from "../api/client";
 import { Loading, Notice } from "../components";
-export default function BookDownloads({ workId }: { workId: string }) {
+export default function BookDownloads({
+  workId,
+  otherReleases,
+}: {
+  workId: string;
+  /** Link to the full release list, shown when the viewer can download. */
+  otherReleases?: string;
+}) {
   const query = usePagedQuery({
     queryKey: ["book-downloads", workId],
     queryFn: async (offset, signal) =>
@@ -16,8 +23,8 @@ export default function BookDownloads({ workId }: { workId: string }) {
       ),
     initial: 0,
     next: (last, pages) => {
-      const count = pages.reduce((n, p) => n + p.items.length, 0);
-      return last.items.length && count < last.total ? count : undefined;
+      const count = pages.reduce((n, p) => n + (p.items?.length ?? 0), 0);
+      return last.items?.length && count < last.total ? count : undefined;
     },
     refetchInterval: 15_000,
   });
@@ -32,7 +39,14 @@ export default function BookDownloads({ workId }: { workId: string }) {
           <p className="eyebrow">FROM SOURCE TO SHELF</p>
           <h2 id="downloads-heading">Your download history</h2>
         </div>
-        <Link to="/requests?status=downloading">View download queue →</Link>
+        <div className="book-downloads-actions">
+          {otherReleases && (
+            <Link className="button-link" to={otherReleases}>
+              Download a different release
+            </Link>
+          )}
+          <Link to="/requests?status=downloading">View download queue →</Link>
+        </div>
       </div>
       <Notice error={query.error} />
       {query.isPending && <Loading />}
@@ -41,7 +55,7 @@ export default function BookDownloads({ workId }: { workId: string }) {
       )}
       {query.data && (
         <>
-          {!query.data.items.length ? (
+          {!query.data.items?.length ? (
             <p className="muted">
               No downloads recorded for this book in your account. Copies added
               outside this app may not have a download source recorded.
@@ -58,7 +72,7 @@ export default function BookDownloads({ workId }: { workId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {query.data.items.map((item) => (
+                  {query.data.items?.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <strong>{item.release_title}</strong>

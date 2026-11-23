@@ -83,7 +83,19 @@ test("manual search shares defaults and confirmed Quick Add feedback retires", a
   await page.goto("/books/work-1");
   const feedback = page.getByRole("region", { name: "Quick add progress" });
   await expect(feedback).toContainText("automatic download queued");
-  await page.getByRole("tab", { name: "Sources", exact: true }).click();
+  await expect(
+    feedback.getByRole("link", { name: "Choose a different release" }),
+  ).toHaveAttribute("href", "/books/work-1?tab=sources&releaseAll=1");
+  await page.getByRole("tab", { name: "Downloads", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Download a different release" }),
+  ).toHaveAttribute("href", "/books/work-1?tab=sources&releaseAll=1");
+  await page
+    .getByRole("link", { name: "Download a different release" })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "Downloads", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   const query = page.getByRole("textbox", { name: "Release search query" });
   await expect(query).toHaveValue("Enshittification");
   expect(searches).toHaveLength(1);
@@ -99,7 +111,7 @@ test("manual search shares defaults and confirmed Quick Add feedback retires", a
   receipt = null;
   await page.clock.fastForward(5000);
   await expect(feedback).toHaveCount(0);
-  await page.getByRole("tab", { name: "Sources", exact: true }).click();
+  await page.getByRole("link", { name: "Search sources", exact: true }).click();
   await page.reload();
   await expect(query).toHaveValue("Enshittification Cory Doctorow epub");
   expect(searches).toHaveLength(2);

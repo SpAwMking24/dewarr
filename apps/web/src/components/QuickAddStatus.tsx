@@ -31,6 +31,13 @@ export default function QuickAddStatus({
     /no (eligible|automatic|matching) release|no results|title and author/i.test(
       failure,
     );
+  const owned = !!receipt?.message?.startsWith("Already available");
+  const queued =
+    !starting &&
+    !active &&
+    !held &&
+    !owned &&
+    /queued/i.test(receipt?.message || "");
   const message = starting
     ? "Submitting your request. Search progress will appear here."
     : active
@@ -72,14 +79,19 @@ export default function QuickAddStatus({
               ? "Finding your download"
               : held
                 ? "Request needs attention"
-                : receipt?.message?.startsWith("Already available")
+                : owned
                   ? "In library"
-                  : /queued/i.test(receipt?.message || "")
+                  : queued
                     ? "Downloads queued"
                     : "Request saved"}
         </strong>
       </div>
       <p>{message}</p>
+      {queued && (
+        <p className="muted">
+          It goes into your library automatically when it finishes.
+        </p>
+      )}
       <div
         className="quick-add-status-actions"
         role="group"
@@ -90,6 +102,13 @@ export default function QuickAddStatus({
         )}
         {held && workId && (
           <Link to={`/books/${workId}?${context}`}>Review sources</Link>
+        )}
+        {queued && workId && (
+          <Link
+            to={`/books/${workId}?${new URLSearchParams({ tab: "sources", releaseAll: "1" })}`}
+          >
+            Choose a different release
+          </Link>
         )}
         <Link
           to={
