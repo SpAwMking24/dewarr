@@ -74,6 +74,7 @@ def test_slskd_queries_preserve_custom_search_terms():
 
 def test_slskd_relevance_ignores_unrelated_music_folders():
     from types import SimpleNamespace
+
     from app.domain.source_queries import slskd_relevant
 
     work = {
@@ -95,6 +96,7 @@ def test_slskd_relevance_ignores_unrelated_music_folders():
 
 def test_slskd_relevance_accepts_numberless_book_folder_without_rewriting_it():
     from types import SimpleNamespace
+
     from app.domain.source_queries import slskd_relevant
 
     work = {
@@ -109,8 +111,10 @@ def test_slskd_relevance_accepts_numberless_book_folder_without_rewriting_it():
     assert slskd_relevant([release], work)
     assert release.title == "The Saboteurs"
 
+
 def test_slskd_relevance_requires_author_evidence_for_audio_folders():
     from types import SimpleNamespace
+
     from app.domain.source_queries import slskd_relevant
 
     work = {
@@ -147,6 +151,7 @@ def test_slskd_relevance_requires_author_evidence_for_audio_folders():
 
 def test_slskd_relevance_respects_requested_search_medium():
     from types import SimpleNamespace
+
     from app.domain.source_queries import slskd_relevant
 
     work = {
@@ -167,3 +172,12 @@ def test_slskd_relevance_respects_requested_search_medium():
     assert not slskd_relevant([audio], work, medium="ebook")
     assert not slskd_relevant([ebook], work, medium="audio")
     assert slskd_relevant([audio], work, medium="audio")
+
+
+def test_slash_titles_get_a_search_safe_fallback():
+    from app.domain.source_queries import book_queries, search_safe
+
+    assert search_safe("11/22/63") == "11 22 63"
+    assert search_safe("Pride & Prejudice") == "Pride and Prejudice"
+    queries = book_queries({"title": "11/22/63", "authors": ["Stephen King"]}, "11/22/63 King")
+    assert queries[-1] == "11 22 63"

@@ -216,6 +216,32 @@ def posting(post, path):
     )
 
 
+BOT_CHECK_MESSAGE = (
+    "AudiobookBay returned an anti-bot check instead of search results. "
+    "Configure a proxy or FlareSolverr route, or search it through Prowlarr."
+)
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+_BOT_MARKERS = (
+    "cf-chl-",
+    "challenge-platform",
+    "just a moment...",
+    "attention required! | cloudflare",
+    "ddos-guard",
+    "checking your browser",
+    "g-recaptcha",
+    "h-captcha",
+)
+
+
+def bot_check(content):
+    """Recognize common interstitials so they are not reported as empty searches."""
+    sample = (content or "")[:20000].casefold()
+    return any(marker in sample for marker in _BOT_MARKERS)
+
+
 def parse_search(content, base_url, page):
     soup = document(content)
     posts = soup.select(".post")
@@ -225,12 +251,14 @@ def parse_search(content, base_url, page):
         empty = empty or next(
             (
                 h
-                for h in soup.select("#content h2")
+                for h in soup.select("#content h2, #content h3, #content .archiveTitle")
                 if text(h).casefold() in {"not found", "nothing found", "no results found"}
             ),
             None,
         )
         if not empty:
+            if bot_check(content):
+                raise AdapterError(FailureKind.ROUTE, BOT_CHECK_MESSAGE)
             raise AdapterError(FailureKind.PARSER, "AudiobookBay search layout was not recognized.")
         return ABBPage([], page, False)
     if len(posts) > 100:
@@ -419,7 +447,11 @@ class ABBClient:
         )
         self.client = httpx.AsyncClient(
             base_url=self.base_url + "/",
-            headers={"User-Agent": "BookSearch/0.1", "Accept": "text/html"},
+            headers={
+                "User-Agent": BROWSER_USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en-GB,en;q=0.9",
+            },
             trust_env=False,
             follow_redirects=False,
             proxy=proxy,
@@ -454,6 +486,11 @@ class ABBClient:
                     404: FailureKind.NOT_FOUND,
                     429: FailureKind.RATE_LIMIT,
                 }.get(response.status_code)
+                if response.status_code in {403, 503} and (
+                    response.headers.get("cf-mitigated")
+                    or "cloudflare" in response.headers.get("server", "").lower()
+                ):
+                    raise AdapterError(FailureKind.ROUTE, BOT_CHECK_MESSAGE)
                 if kind:
                     raise AdapterError(
                         kind,

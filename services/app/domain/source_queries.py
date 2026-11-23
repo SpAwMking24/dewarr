@@ -20,6 +20,16 @@ def normalized_query(value):
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
+def search_safe(value):
+    """Site search engines often drop or choke on "/" and similar punctuation.
+
+    "11/22/63" returns nothing on AudiobookBay while "11 22 63" finds the book.
+    Only used as a last fallback; matching still compares the catalog title.
+    """
+    value = re.sub(r"[/\\|]+", " ", value).replace("&", " and ")
+    return " ".join(value.split())
+
+
 def default_query(work):
     """Discover by short title; verify authors and full identity on the results.
 
@@ -57,7 +67,7 @@ def slskd_queries(work, query):
 
     title = optional_subtitle_base(work.title)
     title_without_number = re.sub(r"^\s*#\s*\d+\s+", "", title).strip()
-    candidates = [query, _title_author_query(work), title_without_number]
+    candidates = [query, _title_author_query(work), title_without_number, search_safe(title)]
     result, seen = [], set()
     for value in candidates:
         key = normalized_query(value)
@@ -71,9 +81,7 @@ def slskd_relevant(releases, work, medium="all"):
     """Decide whether Soulseek results justify stopping the query fallbacks."""
     title = optional_subtitle_base(work["title"])
     title = re.sub(r"^\s*#\s*\d+\s+", "", title).strip()
-    title_pattern = (
-        rf"(?<![\w']){re.escape(title)}(?![\w'])" if title else None
-    )
+    title_pattern = rf"(?<![\w']){re.escape(title)}(?![\w'])" if title else None
 
     authors = identity_authors(work.get("authors") or [])[0]
     surnames = {
@@ -113,6 +121,7 @@ def slskd_relevant(releases, work, medium="all"):
 
     return False
 
+
 def book_queries(work, query):
     """Broaden a default search after empty responses; preserve custom queries.
 
@@ -125,7 +134,7 @@ def book_queries(work, query):
     title = optional_subtitle_base(work.title)
     shortened = _title_author_query(SimpleNamespace(title=title, authors=work.authors))
     candidates, seen = [], set()
-    for value in (query, shortened, title[:300]):
+    for value in (query, shortened, title[:300], search_safe(title)[:300]):
         key = normalized_query(value)
         if key and key not in seen:
             candidates.append(value)

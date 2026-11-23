@@ -330,3 +330,20 @@ async def test_large_and_non_html_responses_are_rejected(monkeypatch):
             with pytest.raises(AdapterError) as error:
                 await client.test()
             assert error.value.kind == FailureKind.PARSER
+
+
+def test_current_not_found_page_is_an_empty_search():
+    html = (
+        '<div id="content"><h1 class="archiveTitle">11/22/63 Audiobooks Free Download</h1>'
+        "<h3>Not Found</h3><p>Please try again with another query</p></div>"
+    )
+    page = parse_search(html, ORIGIN, 1)
+    assert not page.items and not page.has_more
+
+
+def test_bot_check_is_reported_as_a_route_problem():
+    html = "<html><title>Just a moment...</title><div id='cf-chl-widget'></div></html>"
+    with pytest.raises(AdapterError) as error:
+        parse_search(html, ORIGIN, 1)
+    assert error.value.kind == FailureKind.ROUTE
+    assert "anti-bot" in str(error.value)
