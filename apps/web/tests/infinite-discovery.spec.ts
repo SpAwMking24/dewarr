@@ -383,7 +383,7 @@ test("Discover previews stop at 100 and View all continues scrolling", async ({
   await expect(shelf.locator("li")).toHaveCount(40);
   await expect(
     row.getByRole("button", { name: "Download all missing", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   for (const count of [80, 101]) {
     await shelf.evaluate((el) => {
       el.scrollLeft = el.scrollWidth;
@@ -393,12 +393,7 @@ test("Discover previews stop at 100 and View all continues scrolling", async ({
   const action = await row
     .getByRole("link", { name: "View all", exact: true })
     .boundingBox();
-  const arrow = await row
-    .getByRole("button", { name: "Scroll Collection 1 forward" })
-    .boundingBox();
-  const download = await row.locator(".quick-add-split").boundingBox();
   expect(action!.height).toBe(30);
-  expect(download!.height).toBe(arrow!.height);
   await shelf.locator(".shelf-view-all").scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath("discover-compact.png") });
   await shelf.locator(".shelf-view-all").click();

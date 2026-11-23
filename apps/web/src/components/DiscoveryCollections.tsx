@@ -175,7 +175,6 @@ export function CollectionBooks({
 
 export function CollectionRow({
   collection,
-  canEdit = true,
 }: {
   collection: Collection;
   canEdit?: boolean;
@@ -207,16 +206,6 @@ export function CollectionRow({
           <h2>{collection.title}</h2>
         </div>
         <div className="button-row">
-          {canEdit &&
-            collection.medium !== "audio" &&
-            collection.category !== "Illustration" && (
-              <ListDownloads
-                listId={collection.id}
-                source="collection"
-                name={collection.title}
-                disabled={query.isPending || !query.data?.total}
-              />
-            )}
           <ContextLink
             className="shelf-action"
             to={collectionPath(collection.id)}

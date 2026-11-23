@@ -31,7 +31,6 @@ import FollowedLists, {
 } from "../components/FollowedLists";
 import DeferredShelf from "../components/DeferredShelf";
 import DiscoveryShelf from "../components/DiscoveryShelf";
-import ListDownloads from "../components/ListDownloads";
 import ShelfPagination from "../components/ShelfPagination";
 import SeriesContinuation from "../components/SeriesContinuation";
 import RecentLibrary from "../components/RecentLibrary";
@@ -949,7 +948,6 @@ function YourLists({ canEdit }: { canEdit: boolean }) {
 
 function ProviderShelf({
   shelf,
-  canEdit,
   full = false,
 }: {
   shelf: "trending" | "new-releases";
@@ -999,14 +997,6 @@ function ProviderShelf({
           }
           controls={
             <div className="button-row">
-              {canEdit && (
-                <ListDownloads
-                  source="shelf"
-                  listId={shelf}
-                  name={query.data.title}
-                  disabled={!query.data.items?.length}
-                />
-              )}
               {!full && (
                 <Link
                   className="shelf-action"
