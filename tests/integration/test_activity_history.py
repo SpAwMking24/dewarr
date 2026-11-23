@@ -250,7 +250,10 @@ async def test_activity_export_includes_all_matching_rows_and_redacts_secrets(
                 kind="metadata.enrich",
                 status="failed" if i == 0 else "completed",
                 message=f"Export record {i}",
-                payload={"work_id": str(uuid4()), "nested": {"api_key": "do-not-export", "attempt": i}},
+                payload={
+                    "work_id": str(uuid4()),
+                    "nested": {"api_key": "do-not-export", "attempt": i},
+                },
             )
             for i in range(55)
         ]

@@ -1,7 +1,7 @@
 import csv
 import io
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -212,7 +212,8 @@ def _redact_export(value):
     sensitive = ("password", "token", "secret", "api_key", "authorization", "cookie")
     if isinstance(value, dict):
         return {
-            key: "[REDACTED]" if any(part in str(key).lower() for part in sensitive)
+            key: "[REDACTED]"
+            if any(part in str(key).lower() for part in sensitive)
             else _redact_export(item)
             for key, item in value.items()
         }
@@ -249,9 +250,7 @@ async def export_activity(
         )
     rows = (
         await db.scalars(
-            select(Operation)
-            .where(*where)
-            .order_by(Operation.created_at.desc(), Operation.id)
+            select(Operation).where(*where).order_by(Operation.created_at.desc(), Operation.id)
         )
     ).all()
     records = [
@@ -266,16 +265,21 @@ async def export_activity(
         }
         for row in rows
     ]
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     if format == "json":
         content = json.dumps(
-            {"exported_at": datetime.now(timezone.utc).isoformat(),
-             "count": len(records), "filters": {"q": q, "status": status, "kind": kind},
-             "operations": records},
-            ensure_ascii=False, indent=2,
+            {
+                "exported_at": datetime.now(UTC).isoformat(),
+                "count": len(records),
+                "filters": {"q": q, "status": status, "kind": kind},
+                "operations": records,
+            },
+            ensure_ascii=False,
+            indent=2,
         )
         return Response(
-            content=content, media_type="application/json",
+            content=content,
+            media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="dewarr-logs-{stamp}.json"'},
         )
     output = io.StringIO(newline="")
@@ -287,7 +291,8 @@ async def export_activity(
     for record in records:
         writer.writerow({**record, "payload": json.dumps(record["payload"], ensure_ascii=False)})
     return Response(
-        content=output.getvalue(), media_type="text/csv; charset=utf-8",
+        content=output.getvalue(),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="dewarr-logs-{stamp}.csv"'},
     )
 
