@@ -356,17 +356,23 @@ class OpenLibrary:
             docs, count = data["docs"], data.get("numFound", data.get("num_found"))
             if not isinstance(docs, list) or type(count) is not int or count < 0:
                 raise parse_failure()
-            items = [
-                BookData(
-                    provider="openlibrary",
-                    external_id=identifier("openlibrary", row["key"].removeprefix("/works/")),
-                    title=row["title"],
-                    authors=row.get("author_name", []),
-                    publication_year=year(row.get("first_publish_year")),
-                    cover_url=self.cover(row.get("cover_i")),
+            items = []
+            for row in docs:
+                key = row.get("key") if isinstance(row, dict) else None
+                # Open Library occasionally lists edition-shaped keys ("/works/OL1M")
+                # among work results. Skip those rows instead of failing the page.
+                if not isinstance(key, str) or not re.fullmatch(r"/works/OL\d{1,15}W", key):
+                    continue
+                items.append(
+                    BookData(
+                        provider="openlibrary",
+                        external_id=identifier("openlibrary", key.removeprefix("/works/")),
+                        title=row["title"],
+                        authors=row.get("author_name", []),
+                        publication_year=year(row.get("first_publish_year")),
+                        cover_url=self.cover(row.get("cover_i")),
+                    )
                 )
-                for row in docs
-            ]
             return SearchPage(
                 provider="openlibrary", items=items, page=page, has_more=page * 20 < count
             )
