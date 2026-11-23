@@ -768,3 +768,25 @@ def test_prowlarr_audiobookbay_credit_strips_release_suffixes(title, expected):
         ["Dennis E. Taylor"] if expected == "corroborated" else []
     )
     assert assess_release(release, work, ReleasePreferences(), "audio").identity == expected
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        (
+            "11/22/63 - Stephen King (2011/Alternate History/Time Travel) [MP3] Unabridged",
+            ["Stephen King"],
+        ),
+        ("11/22/63 - Stephen King (2011/Horror) [M4B]", ["Stephen King"]),
+        # A bracketed block that does not lead with a year is not a release label.
+        ("11/22/63 - Stephen King (Alternate History/Time Travel)", []),
+    ],
+)
+def test_year_led_descriptive_suffix_does_not_hide_the_author(title, expected):
+    from types import SimpleNamespace
+
+    from app.domain.release_profiles import indexer_title_authors
+
+    candidate = SimpleNamespace(source="prowlarr", title=title, raw_title=title, authors=[])
+    work = {"title": "11/22/63", "authors": ["Stephen King"], "series": []}
+    assert indexer_title_authors(candidate, work) == expected

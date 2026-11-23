@@ -14,6 +14,9 @@ _LABEL = rf"(?:{'|'.join(sorted(LABELS))}|(?:19|20)\d{{2}}|\d{{2,3}}\s*kbps)"
 _SUFFIX = re.compile(
     rf"(?:[.\s_]*\[\s*(?P<square>{_LABEL})\s*\]|"
     rf"[.\s_]*\(\s*(?P<round>{_LABEL})\s*\)|"
+    # "(2011/Alternate History/Time Travel)": a release year followed by
+    # slash-separated genre words. The year must lead so real titles survive.
+    rf"[.\s_]*\(\s*(?P<described>(?:19|20)\d{{2}}(?:\s*/\s*[^()\[\]/]{{1,40}}){{1,5}})\s*\)|"
     rf"[.\s_]+(?P<bare>{_LABEL}))\s*$",
     re.I,
 )
