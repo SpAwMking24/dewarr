@@ -1029,7 +1029,6 @@
   gap: 0.35rem;
 }
 
-
 /* Overall book search progress without exposing individual providers. */
 .book-sources .source-progress {
   padding: 14px 16px;
@@ -1077,4 +1076,59 @@
   margin: 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+/* Sources page: one recommended release with a single download button. */
+.source-best {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.source-best-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-best-heading .eyebrow {
+  margin: 0;
+}
+
+.source-best-check {
+  font-size: 0.8rem;
+  color: var(--warning, #e0b252);
+}
+
+.source-best h3,
+.source-best p {
+  margin: 0;
+}
+
+.source-best-reasons {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 0.85rem;
+}
+
+.source-best h3 {
+  font-size: 1.15rem;
+}
+
+.source-best-download {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.source-best-more {
+  margin-top: 4px;
+}
+
+.source-hide-all {
+  justify-self: start;
+  margin-bottom: 12px;
 }

@@ -443,6 +443,23 @@ function Results({
     hideBlocked
   );
   const visibleCount = (pageIndex + 1) * 50;
+  // The top result in preferred order that is clearly this book and ready to download.
+  const best =
+    data.status === "completed" && canAcquire
+      ? data.items.find(
+          (item) =>
+            item.assessment.identity !== "unmatched" &&
+            !item.assessment.blocked.length &&
+            !unavailableReason(item) &&
+            !item.possible_collection &&
+            canDownload(item.release.medium),
+        )
+      : undefined;
+  const showAll =
+    !best ||
+    view.get("releaseAll") === "1" ||
+    filteredView ||
+    activeSort !== "profile";
   return (
     <>
       {totalSources > 0 && (
@@ -527,7 +544,95 @@ function Results({
           </button>
         </div>
       )}
-      {data.items.length > 0 && (
+      {best && (
+        <section className="panel source-best" aria-label="Best match">
+          <div className="source-best-heading">
+            <p className="eyebrow">Best match</p>
+            {best.assessment.identity === "possible" && (
+              <span className="source-best-check">Check the details</span>
+            )}
+          </div>
+          <h3>{best.release.title}</h3>
+          <p className="source-best-meta">
+            {[
+              best.release.authors?.join(", "),
+              best.release.narrators?.length
+                ? `Narrated by ${best.release.narrators.join(", ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          <p className="source-best-facts muted">
+            {[
+              best.release.medium === "audio"
+                ? "Audiobook"
+                : best.release.medium === "ebook"
+                  ? "Ebook"
+                  : "",
+              best.release.formats?.join(", ").toUpperCase(),
+              best.release.size_bytes == null
+                ? ""
+                : transferSize(best.release.size_bytes),
+              best.release.seeders == null
+                ? ""
+                : `${best.release.seeders.toLocaleString()} seeders`,
+              sourceName(best.release),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          {!!best.assessment.explanation.length && (
+            <ul className="source-best-reasons">
+              {best.assessment.explanation.slice(0, 3).map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          )}
+          <div className="source-best-download">
+            <SourceReleaseDownload
+              showLabel
+              label="Download this one"
+              reviewContext={reviewContext(best)}
+              key={best.download?.operation_id || "unselected"}
+              searchId={data.id}
+              resultId={best.id}
+              source={best.release.source}
+              title={best.release.title}
+              download={best.download}
+              offerWedge={
+                best.release.source === "mam" &&
+                !best.release.freeleech &&
+                !best.release.personal_freeleech
+              }
+              disabled={false}
+            />
+          </div>
+          <div className="actions source-best-more">
+            <button type="button" onClick={() => setDetailId(best.id)}>
+              <Info size={16} aria-hidden /> Details
+            </button>
+            {!showAll && data.items.length > 1 && (
+              <button
+                type="button"
+                onClick={() => updateView({ releaseAll: "1" })}
+              >
+                Show all {data.items.length} results
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {showAll && best && view.get("releaseAll") === "1" && (
+        <button
+          type="button"
+          className="source-hide-all"
+          onClick={() => updateView({ releaseAll: null, releasePage: null })}
+        >
+          Hide other results
+        </button>
+      )}
+      {showAll && data.items.length > 0 && (
         <section
           className="panel release-comparison"
           aria-label="Compare loaded releases"
@@ -636,156 +741,161 @@ function Results({
           )}
         </section>
       )}
-      <p
-        className="source-count"
-        tabIndex={-1}
-        ref={resultsHeading}
-        aria-live="polite"
-      >
-        {data.items.length} distinct releases
-        {filteredView ? ` · ${filtered.length} match your filters` : ""}
-        {filtered.length > 0
-          ? ` · showing ${1}–${Math.min(visibleCount, filtered.length)}`
-          : ""}
-      </p>
-      {filteredView && !filtered.length && (
-        <p className="notice">
-          No loaded releases match these filters. Clear the filters to see the
-          other results.
-        </p>
-      )}
-      {!!filtered.length && (
-        <div
-          className="source-table-scroll"
-          role="region"
-          aria-label="Source releases"
-          tabIndex={0}
-        >
-          <table className="source-table">
-            <thead>
-              <tr>
-                <th scope="col">Title</th>
-                <th scope="col">Author(s)</th>
-                <th scope="col">Narrators</th>
-                <th scope="col">Size</th>
-                <th scope="col">Format</th>
-                <th scope="col">Seeds</th>
-                <th scope="col">Tags</th>
-                <th scope="col">Status / actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, visibleCount).map(({ item, rank }) => (
-                <tr
-                  className="source-release"
-                  key={item.id}
-                  aria-label={item.release.title}
-                >
-                  <td className="release-title-cell">
-                    <button
-                      className="release-title-button"
-                      onClick={() => setDetailId(item.id)}
+      {showAll && (
+        <>
+          <p
+            className="source-count"
+            tabIndex={-1}
+            ref={resultsHeading}
+            aria-live="polite"
+          >
+            {data.items.length} distinct releases
+            {filteredView ? ` · ${filtered.length} match your filters` : ""}
+            {filtered.length > 0
+              ? ` · showing ${1}–${Math.min(visibleCount, filtered.length)}`
+              : ""}
+          </p>
+          {filteredView && !filtered.length && (
+            <p className="notice">
+              No loaded releases match these filters. Clear the filters to see
+              the other results.
+            </p>
+          )}
+          {!!filtered.length && (
+            <div
+              className="source-table-scroll"
+              role="region"
+              aria-label="Source releases"
+              tabIndex={0}
+            >
+              <table className="source-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Title</th>
+                    <th scope="col">Author(s)</th>
+                    <th scope="col">Narrators</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Format</th>
+                    <th scope="col">Seeds</th>
+                    <th scope="col">Tags</th>
+                    <th scope="col">Status / actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.slice(0, visibleCount).map(({ item, rank }) => (
+                    <tr
+                      className="source-release"
+                      key={item.id}
+                      aria-label={item.release.title}
                     >
-                      {item.release.title}
-                    </button>
-                    <small>
-                      {sourceName(item.release)} · #{rank + 1}
-                      {item.assessment.identity === "possible"
-                        ? " · Needs checking"
-                        : item.assessment.identity === "unmatched"
-                          ? " · Unmatched"
-                          : ""}
-                      {unavailableReason(item)
-                        ? ` · ${unavailableReason(item)}`
-                        : item.assessment.blocked.length
-                          ? " · Blocked"
-                          : ""}
-                    </small>
-                  </td>
-                  <td data-label="Authors">
-                    {item.release.authors?.join(", ") || "—"}
-                  </td>
-                  <td data-label="Narrators">
-                    {item.release.narrators?.join(", ") || "—"}
-                  </td>
-                  <td data-label="Size" className="release-numeric">
-                    {item.release.size_bytes == null
-                      ? "Unknown"
-                      : transferSize(item.release.size_bytes)}
-                  </td>
-                  <td data-label="Format">
-                    <span className="release-format">
-                      {item.release.formats?.join(", ").toUpperCase() ||
-                        "Unknown"}
-                    </span>
-                    <small>
-                      {item.release.medium === "audio"
-                        ? "Audiobook"
-                        : item.release.medium === "ebook"
-                          ? "Ebook"
-                          : "Unknown medium"}
-                    </small>
-                  </td>
-                  <td
-                    data-label="Availability"
-                    className="release-numeric release-seeds"
-                  >
-                    {item.release.protocol === "soulseek"
-                      ? "Peer online"
-                      : (item.release.seeders?.toLocaleString() ?? "Unknown")}
-                  </td>
-                  <td data-label="Tags">
-                    <ReleaseTags release={item.release} />
-                    {item.release.source === "mam" &&
-                      !item.release.freeleech &&
-                      !item.release.vip && <span className="muted">—</span>}
-                  </td>
-                  <td className="source-actions-cell">
-                    <div className="source-row-actions">
-                      <button
-                        className="release-info-button"
-                        aria-label={`Details for ${item.release.title}`}
-                        title="Release details"
-                        onClick={() => setDetailId(item.id)}
+                      <td className="release-title-cell">
+                        <button
+                          className="release-title-button"
+                          onClick={() => setDetailId(item.id)}
+                        >
+                          {item.release.title}
+                        </button>
+                        <small>
+                          {sourceName(item.release)} · #{rank + 1}
+                          {item.assessment.identity === "possible"
+                            ? " · Needs checking"
+                            : item.assessment.identity === "unmatched"
+                              ? " · Unmatched"
+                              : ""}
+                          {unavailableReason(item)
+                            ? ` · ${unavailableReason(item)}`
+                            : item.assessment.blocked.length
+                              ? " · Blocked"
+                              : ""}
+                        </small>
+                      </td>
+                      <td data-label="Authors">
+                        {item.release.authors?.join(", ") || "—"}
+                      </td>
+                      <td data-label="Narrators">
+                        {item.release.narrators?.join(", ") || "—"}
+                      </td>
+                      <td data-label="Size" className="release-numeric">
+                        {item.release.size_bytes == null
+                          ? "Unknown"
+                          : transferSize(item.release.size_bytes)}
+                      </td>
+                      <td data-label="Format">
+                        <span className="release-format">
+                          {item.release.formats?.join(", ").toUpperCase() ||
+                            "Unknown"}
+                        </span>
+                        <small>
+                          {item.release.medium === "audio"
+                            ? "Audiobook"
+                            : item.release.medium === "ebook"
+                              ? "Ebook"
+                              : "Unknown medium"}
+                        </small>
+                      </td>
+                      <td
+                        data-label="Availability"
+                        className="release-numeric release-seeds"
                       >
-                        <Info size={18} />
-                      </button>
-                      {canAcquire && canDownload(item.release.medium) && (
-                        <SourceReleaseDownload
-                          showLabel
-                          row
-                          possibleCollection={item.possible_collection}
-                          reviewContext={reviewContext(item)}
-                          key={item.download?.operation_id || "unselected"}
-                          searchId={data.id}
-                          resultId={item.id}
-                          source={item.release.source}
-                          title={item.release.title}
-                          download={item.download}
-                          offerWedge={
-                            item.release.source === "mam" &&
-                            !item.release.freeleech &&
-                            !item.release.personal_freeleech
-                          }
-                          disabled={
-                            data.status !== "completed" ||
-                            !!unavailableReason(item) ||
-                            item.assessment.blocked.length > 0
-                          }
-                          disabledReason={
-                            unavailableReason(item)
-                              ? `${unavailableReason(item)}. Refresh results to download.`
-                              : undefined
-                          }
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        {item.release.protocol === "soulseek"
+                          ? "Peer online"
+                          : (item.release.seeders?.toLocaleString() ??
+                            "Unknown")}
+                      </td>
+                      <td data-label="Tags">
+                        <ReleaseTags release={item.release} />
+                        {item.release.source === "mam" &&
+                          !item.release.freeleech &&
+                          !item.release.vip && <span className="muted">—</span>}
+                      </td>
+                      <td className="source-actions-cell">
+                        <div className="source-row-actions">
+                          <button
+                            className="release-info-button"
+                            aria-label={`Details for ${item.release.title}`}
+                            title="Release details"
+                            onClick={() => setDetailId(item.id)}
+                          >
+                            <Info size={18} />
+                          </button>
+                          {canAcquire && canDownload(item.release.medium) && (
+                            <SourceReleaseDownload
+                              showLabel
+                              row
+                              possibleCollection={item.possible_collection}
+                              reviewContext={reviewContext(item)}
+                              key={item.download?.operation_id || "unselected"}
+                              searchId={data.id}
+                              resultId={item.id}
+                              source={item.release.source}
+                              title={item.release.title}
+                              download={item.download}
+                              offerWedge={
+                                item.release.source === "mam" &&
+                                !item.release.freeleech &&
+                                !item.release.personal_freeleech
+                              }
+                              disabled={
+                                data.status !== "completed" ||
+                                !!unavailableReason(item) ||
+                                item.assessment.blocked.length > 0
+                              }
+                              disabledReason={
+                                unavailableReason(item)
+                                  ? `${unavailableReason(item)}. Refresh results to download.`
+                                  : undefined
+                              }
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
       {detailItem && (
         <SourceReleaseDetails
@@ -804,7 +914,7 @@ function Results({
       )}
       <InfiniteScroll
         query={{
-          hasNextPage: visibleCount < filtered.length,
+          hasNextPage: showAll && visibleCount < filtered.length,
           isFetching: refreshing,
           isFetchNextPageError: false,
           fetchNextPage: async () => setPageIndex((n) => n + 1),

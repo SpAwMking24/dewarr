@@ -469,6 +469,14 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await expect(
     page.getByText(/Adding qBittorrent does not add torrent sources/),
   ).toHaveCount(0);
+  // The best match leads with a single download button; the rest wait behind "Show all".
+  const best = page.getByRole("region", { name: "Best match" });
+  await expect(best).toBeVisible();
+  await expect(
+    best.getByRole("button", { name: /^Download this one / }),
+  ).toBeVisible();
+  await expect(page.getByRole("table")).toHaveCount(0);
+  await best.getByRole("button", { name: /^Show all \d+ results$/ }).click();
   const table = page.getByRole("table");
   await expect(table.getByRole("row")).toHaveCount(3);
   for (const name of [

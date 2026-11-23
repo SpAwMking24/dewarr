@@ -34,6 +34,7 @@ export default function SourceReleaseDownload({
   row = false,
   possibleCollection = false,
   reviewContext,
+  label = "Download",
 }: {
   searchId: string;
   resultId: string;
@@ -47,6 +48,8 @@ export default function SourceReleaseDownload({
   row?: boolean;
   possibleCollection?: boolean;
   reviewContext?: string;
+  /** Button text for a plain download; the accessible name keeps the release title. */
+  label?: string;
 }) {
   const [reviewCollection, setReviewCollection] = useState(false);
   const key = useRef(randomUUID());
@@ -238,7 +241,7 @@ export default function SourceReleaseDownload({
         (!complete && !busy && !["downloading", "queued"].includes(state))) && (
         <button
           className={showLabel ? "primary" : "release-info-button"}
-          aria-label={`${canReview ? "Review release" : "Download"} ${title}`}
+          aria-label={`${canReview ? "Review release" : label} ${title}`}
           title={
             state && (complete || busy)
               ? labels[state]
@@ -284,7 +287,7 @@ export default function SourceReleaseDownload({
                 ? "Review release"
                 : complete && state
                   ? labels[state]
-                  : "Download")}
+                  : label)}
         </button>
       )}
       {reviewCollection && (
