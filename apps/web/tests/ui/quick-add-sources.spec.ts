@@ -313,59 +313,35 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   submitGate = new Promise<void>((resolve) => {
     finishSubmit = resolve;
   });
-  await page.getByRole("button", { name: /^Quick add ·/ }).click();
+  await page.getByRole("button", { name: "Add ebook", exact: true }).click();
   const startingStatus = page.getByRole("region", {
     name: "Quick add progress",
   });
-  await expect(startingStatus).toContainText("Starting your request…");
+  await expect(startingStatus).toContainText("Starting ebook request…");
   await expect(startingStatus).toBeVisible();
   finishSubmit!();
   submitGate = undefined;
   await expect(page.getByText("Preferred downloads queued")).toBeVisible();
-  expect(posted[0].specification).toEqual({});
-  await page.getByLabel("Quick add format", { exact: true }).click();
-  const split = page.locator(".quick-add-split");
-  const menuOptions = page.locator(".quick-add-options");
-  const splitBox = (await split.boundingBox())!;
-  const menuBox = (await menuOptions.boundingBox())!;
-  expect(Math.abs(menuBox.x - splitBox.x)).toBeLessThanOrEqual(1);
-  expect(menuBox.y).toBeGreaterThan(splitBox.y + splitBox.height);
-  await expect(menuOptions.getByRole("button").first()).toHaveCSS(
-    "justify-content",
-    "flex-start",
-  );
-  await expect(menuOptions.getByRole("button").first()).toHaveCSS(
-    "height",
-    "30px",
-  );
-  await page.screenshot({
-    path: testInfo.outputPath("quick-add-menu-desktop.png"),
-  });
-
-  await page.getByRole("button", { name: "Ebook", exact: true }).click();
-  await expect.poll(() => posted.length).toBe(2);
-  expect(posted[1].specification).toEqual({ mode: "ebook" });
-  await page.getByLabel("Quick add format", { exact: true }).click();
+  expect(posted[0].specification).toEqual({ mode: "ebook" });
+  await expect(
+    page.getByRole("group", { name: "Add to library" }).getByRole("button"),
+  ).toHaveText(["Add ebook", "Add audiobook", "Add both"]);
   submitGate = new Promise<void>((resolve) => {
     finishSubmit = resolve;
   });
-  await page.getByRole("button", { name: "Audiobook", exact: true }).click();
-  await expect.poll(() => posted.length).toBe(3);
-  expect(posted[2].specification).toEqual({ mode: "audio" });
+  await page
+    .getByRole("button", { name: "Add audiobook", exact: true })
+    .click();
+  await expect.poll(() => posted.length).toBe(2);
+  expect(posted[1].specification).toEqual({ mode: "audio" });
   await expect(startingStatus).toContainText("Starting audiobook request…");
   await expect(startingStatus).not.toContainText("Preferred downloads queued");
   finishSubmit!();
   submitGate = undefined;
   await expect(startingStatus).toContainText("Preferred downloads queued");
-  await page.getByLabel("Quick add format", { exact: true }).click();
-  await expect(page.locator(".quick-add-options button")).toHaveText([
-    "Both",
-    "Ebook",
-    "Audiobook",
-  ]);
-  await page.getByRole("button", { name: "Both", exact: true }).click();
-  await expect.poll(() => posted.length).toBe(4);
-  expect(posted[3].specification).toEqual({ mode: "both" });
+  await page.getByRole("button", { name: "Add both", exact: true }).click();
+  await expect.poll(() => posted.length).toBe(3);
+  expect(posted[2].specification).toEqual({ mode: "both" });
   receipt = {
     id: "quick-1",
     status: "running",
@@ -378,9 +354,10 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await expect(quickStatus).toContainText(
     "Finding the best match using your saved preferences.",
   );
-  await expect(
-    page.getByRole("button", { name: "Adding…", exact: true }),
-  ).toBeDisabled();
+  for (const name of ["Add ebook", "Add audiobook", "Add both"])
+    await expect(
+      page.getByRole("button", { name, exact: true }),
+    ).toBeDisabled();
   receipt = {
     id: "quick-1",
     status: "held",
@@ -440,8 +417,9 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   submitGate = new Promise<void>((resolve) => {
     finishSubmit = resolve;
   });
-  await page.getByLabel("Quick add format", { exact: true }).click();
-  await page.getByRole("button", { name: "Audiobook", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Add audiobook", exact: true })
+    .click();
   await expect(quickStatus).toContainText("Starting audiobook request…");
   await expect(quickStatus).not.toContainText("Request needs attention");
   await expect(
@@ -912,21 +890,17 @@ test("Quick add follows defaults and format overrides; sources provide compact r
     return route.fulfill({ json: work });
   });
   await page.goto("/discover/books/hardcover/9010");
-  await page.getByLabel("Quick add format", { exact: true }).click();
-  const mobileSplit = (await split.boundingBox())!;
-  const mobileMenu = (await menuOptions.boundingBox())!;
-  expect(Math.abs(mobileMenu.x - mobileSplit.x)).toBeLessThanOrEqual(1);
-  expect(mobileMenu.x + mobileMenu.width).toBeLessThanOrEqual(390);
   await page.screenshot({
-    path: testInfo.outputPath("quick-add-menu-mobile.png"),
+    path: testInfo.outputPath("quick-add-mobile.png"),
     fullPage: true,
   });
-  await page.keyboard.press("Escape");
-
-  await page.getByRole("button", { name: /^Quick add ·/ }).click();
-  await expect.poll(() => posted.length).toBe(6);
+  await page.getByRole("button", { name: "Add both", exact: true }).click();
+  await expect.poll(() => posted.length).toBe(5);
   expect(imported).toBe(1);
-  expect(posted[5]).toEqual({ work_id: work.id, specification: {} });
+  expect(posted[4]).toEqual({
+    work_id: work.id,
+    specification: { mode: "both" },
+  });
   await expect(page.getByText("Preferred downloads queued")).toBeVisible();
   await page
     .getByRole("button", { name: "Search sources", exact: true })

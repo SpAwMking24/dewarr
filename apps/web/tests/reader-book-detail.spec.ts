@@ -187,7 +187,7 @@ test("Discover opens a full book page with safe reviews and explicit actions", a
   await page.getByRole("tab", { name: "Reviews", exact: true }).click();
   await expect(page.getByText("Reviews temporarily unavailable")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Quick add · / }),
+    page.getByRole("button", { name: "Add both", exact: true }),
   ).toBeEnabled();
   await page.unroute("**/reader-details");
   await page
@@ -206,7 +206,7 @@ test("Discover opens a full book page with safe reviews and explicit actions", a
     };
     return route.fulfill({ status: 202, json: quickReceipt });
   });
-  await page.getByRole("button", { name: /^Quick add · / }).click();
+  await page.getByRole("button", { name: "Add both", exact: true }).click();
   await expect(page.getByText("Preferred downloads queued")).toBeVisible();
   expect(writes.filter((url) => url.endsWith("/import"))).toHaveLength(1);
   expect(

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, ChevronDown, Download, Headphones } from "lucide-react";
+import { BookOpen, Download, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, result, type Auth } from "../api/client";
 import { canStartDownload } from "../permissions";
@@ -274,69 +274,41 @@ export default function QuickAdd({
           )}
       </div>
     );
+  const formats: [Mode, string, boolean][] = [
+    ["ebook", "Add ebook", ebookDownload],
+    ["audio", "Add audiobook", audioDownload],
+    ["both", "Add both", ebookDownload && audioDownload],
+  ];
   return (
     <div className="quick-add" ref={bind}>
-      <div className="quick-add-split">
-        <button
-          className="primary"
-          disabled={busy || !eitherDownload}
-          onClick={() => choose(undefined)}
-          title={
-            !eitherDownload
-              ? "Choose a format you can download"
-              : preferenceUnset
-                ? "Quick add preference not set"
-                : actionLabel === "Quick add"
-                  ? `Quick add · ${label}. Uses your saved format priorities.`
-                  : `${actionLabel} · ${label}. Looks for a file today using your saved format priorities.`
-          }
-        >
-          <Download size={16} />
-          {busy
-            ? "Adding…"
-            : actionLabel === "Quick add"
-              ? `Quick add · ${label}`
-              : actionLabel}
-        </button>
-        <details
-          ref={menu}
-          className="quick-add-menu"
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget))
-              event.currentTarget.open = false;
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.currentTarget.open = false;
-              event.currentTarget.querySelector("summary")?.focus();
-            }
-          }}
-        >
-          <summary aria-label={`${actionLabel} format`} title="Choose a format">
-            <ChevronDown size={16} />
-          </summary>
-          <div className="quick-add-options">
+      <div
+        className="quick-add-formats"
+        role="group"
+        aria-label={
+          actionLabel === "Quick add" ? "Add to library" : actionLabel
+        }
+      >
+        {formats.map(([mode, name, allowed]) =>
+          allowed ? (
             <button
-              disabled={busy || !eitherDownload}
-              onClick={() => choose("both")}
+              key={mode}
+              type="button"
+              className={mode === "both" ? undefined : "primary"}
+              disabled={busy}
+              onClick={() => choose(mode)}
+              title={`${name}. Finds the best match, downloads it and adds it to your library.`}
             >
-              Both
+              {mode === "ebook" ? (
+                <BookOpen size={16} aria-hidden="true" />
+              ) : mode === "audio" ? (
+                <Headphones size={16} aria-hidden="true" />
+              ) : (
+                <Download size={16} aria-hidden="true" />
+              )}
+              {busy && add.variables === mode ? "Adding…" : name}
             </button>
-            <button
-              disabled={busy || !ebookDownload}
-              onClick={() => choose("ebook")}
-            >
-              Ebook
-            </button>
-            <button
-              disabled={busy || !audioDownload}
-              onClick={() => choose("audio")}
-            >
-              Audiobook
-            </button>
-            <small>Uses your saved format priorities.</small>
-          </div>
-        </details>
+          ) : null,
+        )}
       </div>
       {missingPreference ? (
         <PreferencePrompt />

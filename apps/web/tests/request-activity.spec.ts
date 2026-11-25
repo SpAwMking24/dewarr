@@ -208,7 +208,7 @@ test("activity requests preserve independent reasons and route missing media to 
     .getByRole("link", { name: "Activity Journey Alpha", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: /^Quick add · / }),
+    page.getByRole("button", { name: "Add both", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Quick add progress" }),

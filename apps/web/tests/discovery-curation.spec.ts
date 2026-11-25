@@ -239,7 +239,7 @@ test("Goodreads cards open verified Hardcover details and lists navigation is co
     page.getByRole("heading", { name: "Ender's Game", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Quick add · / }),
+    page.getByRole("button", { name: "Add both", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("Verified Hardcover book description.", { exact: true }),
