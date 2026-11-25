@@ -60,7 +60,9 @@ export default function ListPolicy({
         ? 5000
         : false,
   });
+  const [consumed, setConsumed] = useState(false);
   const saved = (value: Policy) => {
+    setConsumed(true);
     cache.setQueryData(["list-policy", listId], value);
     void cache.invalidateQueries({ queryKey: ["following"] });
     void cache.invalidateQueries({ queryKey: ["list-policy-books", listId] });
@@ -115,7 +117,7 @@ export default function ListPolicy({
             follow={follow}
             policy={policy.data}
             saved={saved}
-            downloadAll={downloadAll && !policy.data?.active}
+            downloadAll={downloadAll && !consumed}
           />
         </>
       ) : null}
@@ -389,6 +391,30 @@ function PolicyEditor({
     key.current = randomUUID();
     preview.reset();
   };
+  const previewBlocked =
+    preview.isPending ||
+    (mode === "automatic" &&
+      (selected.length > 0 || selectAllMissing) &&
+      (!selectionValid || !contentRevision)) ||
+    !profiles.isSuccess ||
+    (!!profileId && !profile) ||
+    (mode === "automatic" &&
+      (!downloader || media.some((m) => !destination(m))));
+  const autoPreview = useRef(downloadAll);
+  useEffect(() => {
+    // Download all: build the preview as soon as everything is ready, so the
+    // reader only has to confirm.
+    if (
+      autoPreview.current &&
+      selectAllMissing &&
+      !previewId &&
+      !previewBlocked &&
+      !preview.isError
+    ) {
+      autoPreview.current = false;
+      preview.mutate();
+    }
+  });
   return (
     <>
       <Notice
@@ -570,21 +596,18 @@ function PolicyEditor({
                 </details>
               </>
             )}
-            <button
-              className="primary"
-              disabled={
-                preview.isPending ||
-                (mode === "automatic" &&
-                  (selected.length > 0 || selectAllMissing) &&
-                  (!selectionValid || !contentRevision)) ||
-                !profiles.isSuccess ||
-                (!!profileId && !profile) ||
-                (mode === "automatic" &&
-                  (!downloader || media.some((m) => !destination(m))))
-              }
-            >
+            <button className="primary" disabled={previewBlocked}>
               {follow ? "Preview follow policy" : "Preview list policy"}
             </button>
+            {downloadAll && mode === "automatic" && !previewId && (
+              <p className="muted" role="status">
+                {previewBlocked && !preview.isPending
+                  ? !downloader || media.some((m) => !destination(m))
+                    ? "Choose a tested downloader and an approved destination to continue."
+                    : "Checking the author's books…"
+                  : "Preparing your download…"}
+              </p>
+            )}
           </fieldset>
         </form>
       ) : receipt.data ? (
@@ -682,7 +705,9 @@ function PolicyEditor({
               disabled={activate.isPending}
             >
               {receipt.data.configuration.mode === "automatic"
-                ? "Activate automatic acquisition"
+                ? downloadAll && receipt.data.selected > 0
+                  ? `Download ${receipt.data.selected} missing books`
+                  : "Activate automatic acquisition"
                 : "Save list mode"}
             </button>
           </div>

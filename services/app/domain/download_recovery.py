@@ -34,6 +34,8 @@ from app.jobs.queue import enqueue
 
 KIND = "acquisition.recover-download"
 OPEN = {"queued", "searching", "selecting"}
+# After the original release, at most this many replacements are tried automatically.
+AUTOMATIC_REPLACEMENTS = 5
 
 
 class RecoveryPolicy(BaseModel):
@@ -207,10 +209,20 @@ async def failed(
         if actor_id is None and not policy_for(config, selection).enabled:
             continue
         root = (selection.frozen.get("download_recovery") or {}).get("root_selection_id")
+        root_id = UUID(root) if root else selection.id
+        tried = (
+            await db.scalar(
+                select(func.count())
+                .select_from(DownloadRecovery)
+                .where(DownloadRecovery.root_selection_id == root_id)
+            )
+            or 0
+        )
+        exhausted = actor_id is None and not approval and tried >= AUTOMATIC_REPLACEMENTS
         row = DownloadRecovery(
             selection_id=selection.id,
             attempt_id=attempt.id,
-            root_selection_id=UUID(root) if root else selection.id,
+            root_selection_id=root_id,
             state="approval" if approval else "queued",
             reason=reason[:300],
             message=(
@@ -238,7 +250,14 @@ async def failed(
         await event(
             db, row, "stalled" if reason.startswith(("No seeders", "No progress")) else "failed"
         )
-        if not approval:
+        if exhausted:
+            await hold(
+                db,
+                row,
+                f"Tried {AUTOMATIC_REPLACEMENTS} other releases and none could be imported. "
+                "Choose a release yourself.",
+            )
+        elif not approval:
             row.job_id = await enqueue(db, KIND, recovery_id=str(row.id))
         rows.append(row)
     if rows:

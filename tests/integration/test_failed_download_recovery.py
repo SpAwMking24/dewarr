@@ -439,6 +439,36 @@ async def test_recovery_continues_beyond_three_distinct_attempts(
         assert await db.scalar(select(func.count()).select_from(ReleaseBlock)) == 4
 
 
+async def test_automatic_replacements_stop_and_ask_the_user(
+    client, database, failed_source, monkeypatch
+):
+    monkeypatch.setattr(download_recovery, "AUTOMATIC_REPLACEMENTS", 1)
+    result_id, artifact_id, release = await additional_candidate(
+        database, failed_source, source_id="502", format="mp3"
+    )
+
+    async def resolve(*args, **kwargs):
+        return artifact_id, release
+
+    monkeypatch.setattr(automatic_selection, "resolve_candidate", resolve)
+    current = failed_source["recovery_id"]
+    await download_recovery.run(current)
+    async with database() as db:
+        operation_id = (await db.get(DownloadRecovery, current)).replacement_id
+    await automatic_selection.run(operation_id)
+    await download_recovery.run(current)
+    async with database() as db, db.begin():
+        row = await db.get(DownloadRecovery, current)
+        assert row.state == "retried", row.message
+        attempt, _ = await download_attempts.locked(
+            db, UUID(row.evidence["replacement_attempt_id"])
+        )
+        rows = await download_recovery.failed(db, attempt, "Downloader reported failed")
+        assert rows[0].state == "held"
+        assert "Choose a release yourself" in rows[0].message
+        assert rows[0].job_id is None
+
+
 async def test_notification_bridge_uses_transactional_deduplicated_events(
     database, failed_source, monkeypatch
 ):

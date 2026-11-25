@@ -28,6 +28,7 @@ from app.domain import download_memberships, download_reviews
 from app.domain.acquisition import RequestSpec, assess
 from app.domain.catalog_titles import parse_title_labels
 from app.domain.operations import transaction_lock
+from app.domain.title_matching import compatible_title
 from app.domain.work_graph import canonical_work
 from app.importing.destination_view import view as destination_view
 from app.importing.extra_files import is_extra
@@ -511,6 +512,23 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
             )
         if (match.status != "matched" and not linked) or not candidate:
             reason = reason or match.message
+            if not reason or reason == match.message:
+                titles = match.evidence.get("titles") or []
+                requested = [(await canonical_work(db, work_id)).title for work_id in works]
+                # Files that name a different book are the wrong release: try the next one.
+                if (
+                    not continuation
+                    and len(members) == 1
+                    and titles
+                    and requested
+                    and not any(
+                        compatible_title(title, expected)
+                        for title in titles
+                        for expected in requested
+                    )
+                ):
+                    release_rejection = True
+                    reason = f"File title “{titles[0]}” does not match the requested book"
         elif candidate.work_id not in works:
             release_rejection = True
             reason = "Additional collection titles need an authorized acquisition scope"
