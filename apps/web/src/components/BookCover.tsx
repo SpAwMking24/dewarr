@@ -6,7 +6,10 @@ import QuickAdd from "./QuickAdd";
 import { api, result, type Auth } from "../api/client";
 import type { Work } from "../api/client";
 import { useDisplayPreferences } from "../displayPreferences";
+import "../reader.css";
 import { canStartDownload } from "../permissions";
+import { Link } from "react-router-dom";
+import { useReadableEbook } from "../hooks/useReadableEbook";
 
 type Props = {
   providerBook?: { provider: string; external_id: string };
@@ -29,6 +32,10 @@ export default function BookCover({
   detail = false,
 }: Props) {
   const display = useDisplayPreferences();
+  const readable = useReadableEbook(
+    detail ? work?.id : undefined,
+    work?.availability.ebook,
+  );
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
     enabled: false,
@@ -194,14 +201,15 @@ export default function BookCover({
               : null;
           const label = `${kind === "audio" ? "Audiobook" : "Ebook"}: ${owned ? (stale ? "in library (last known)" : "in library") : partial || (work ? "not in library" : "library status unknown")}`;
           const Icon = kind === "audio" ? Headphones : BookOpen;
-          return (
-            <span
-              key={kind}
-              className={`cover-format ${owned ? "is-owned" : partial ? "is-partial" : "is-missing"} ${owned && versions > 1 ? "has-versions" : ""}`}
-              role="img"
-              aria-label={label}
-              title={versions > 1 ? `${label} · ${versions} versions` : label}
-            >
+          const href =
+            detail && kind === "ebook" && readable.data
+              ? `/read/${readable.data.asset_id}`
+              : null;
+          const className = `cover-format ${owned ? "is-owned" : partial ? "is-partial" : "is-missing"} ${owned && versions > 1 ? "has-versions" : ""} ${href ? "is-openable" : ""}`;
+          const title =
+            versions > 1 ? `${label} · ${versions} versions` : label;
+          const content = (
+            <>
               <Icon size={15} aria-hidden="true" />
               {owned && versions > 1 && (
                 <small aria-hidden="true">+{versions - 1}</small>
@@ -211,6 +219,27 @@ export default function BookCover({
                   {availability!.parts_owned}/{availability!.parts_total}
                 </small>
               )}
+            </>
+          );
+          return href ? (
+            <Link
+              key={kind}
+              to={href}
+              className={className}
+              aria-label={`Read ${work?.title ?? title} in Dewarr`}
+              title="Read in Dewarr"
+            >
+              {content}
+            </Link>
+          ) : (
+            <span
+              key={kind}
+              className={className}
+              role="img"
+              aria-label={label}
+              title={title}
+            >
+              {content}
             </span>
           );
         })}

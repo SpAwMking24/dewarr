@@ -433,3 +433,26 @@
     display: none;
   }
 }
+
+.format-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.format-open:hover,
+.format-open:focus-visible {
+  text-decoration: underline;
+}
+a.cover-format.is-openable {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+a.cover-format.is-openable:hover,
+a.cover-format.is-openable:focus-visible {
+  filter: brightness(1.25);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

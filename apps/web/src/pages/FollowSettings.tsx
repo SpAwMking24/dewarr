@@ -6,7 +6,8 @@ import type { components } from "../api/schema";
 import { Loading, Notice } from "../components";
 import { randomUUID } from "../randomUUID";
 import ListPolicy from "./ListPolicy";
-import ListRequests from "./ListRequests";
+import ActivityRequests from "./ActivityRequests";
+import type { Auth } from "../api/client";
 
 type Follow = components["schemas"]["CatalogFollowView"];
 type Filters = components["schemas"]["FollowFilters"];
@@ -164,9 +165,13 @@ function FollowEditor({ follow }: { follow: Follow }) {
   const cache = useQueryClient();
   const [params, setParams] = useSearchParams();
   const downloadAll = params.get("download") === "all";
+  const session = useQuery<Auth | null>({
+    queryKey: ["session"],
+    enabled: false,
+  });
+  const admin = session.data?.user.role === "admin";
   const [filters, setFilters] = useState(follow.filters);
   const [offset, setOffset] = useState(0);
-  const [selectedOffset, setSelectedOffset] = useState(0);
   const path = { list_id: follow.list_id };
   const changed = () => {
     for (const key of [
@@ -226,15 +231,6 @@ function FollowEditor({ follow }: { follow: Follow }) {
         }),
       ),
   });
-  const selectedBooks = useQuery({
-    queryKey: ["list-policy-selected", follow.list_id, selectedOffset],
-    queryFn: async () =>
-      result(
-        await api.GET("/api/lists/{list_id}/acquisition/selected", {
-          params: { path, query: { offset: selectedOffset, limit: 25 } },
-        }),
-      ),
-  });
   const exclude = useMutation({
     mutationFn: async (book: { id: string; excluded: boolean }) =>
       result(
@@ -270,7 +266,6 @@ function FollowEditor({ follow }: { follow: Follow }) {
           unfollow.error ||
           sync.error ||
           observations.error ||
-          selectedBooks.error ||
           exclude.error
         }
       />
@@ -316,79 +311,49 @@ function FollowEditor({ follow }: { follow: Follow }) {
           <button disabled={edit.isPending}>Save filters and refresh</button>
         </form>
       </details>
-      {ready ? (
-        <>
-          <ListPolicy
-            key={`${follow.list_id}:${follow.subscription.last_success_at}`}
-            listId={follow.list_id}
-            follow
-            downloadAll={downloadAll}
-          />
-          {follow.mode === "manual" ? (
-            <ListRequests listId={follow.list_id} />
-          ) : null}
-        </>
-      ) : (
+      {downloadAll && ready ? (
+        <ListPolicy
+          key={`${follow.list_id}:${follow.subscription.last_success_at}`}
+          listId={follow.list_id}
+          follow
+          downloadAll
+          onActivated={() => setParams({ list: follow.list_id })}
+        />
+      ) : !ready ? (
         <p>
-          Acquisition stays paused until a complete catalog is verified and you
-          activate a policy.
+          Downloads stay paused until the author's complete catalogue is
+          verified.
           {downloadAll
-            ? " Download all will be preselected once the author's books have loaded."
+            ? " Download all will start once the author's books have loaded."
             : ""}
         </p>
+      ) : (
+        <div className="button-row">
+          <button
+            className="primary"
+            onClick={() => setParams({ list: follow.list_id, download: "all" })}
+          >
+            Download all missing books
+          </button>
+        </div>
       )}
       <section
-        className="panel editor"
-        aria-label="Books selected for acquisition"
+        className="follow-progress"
+        aria-label={`${follow.name} requests`}
       >
-        <h3>Selected in last activation</h3>
-        {selectedBooks.isPending ? (
-          <Loading />
-        ) : (
-          <>
-            <p>
-              {selectedBooks.data?.total ?? 0} books selected for acquisition
-            </p>
-            {selectedBooks.data?.activated_at ? (
-              <p className="muted">
-                Activated{" "}
-                {new Date(selectedBooks.data.activated_at).toLocaleString()}
-              </p>
-            ) : null}
-            {(selectedBooks.data?.records ?? []).map((book) => (
-              <article className="source-attribution" key={book.work_id}>
-                <div>
-                  <Link to={`/books/${book.work_id}`}>{book.title}</Link>
-                  <p>
-                    Selected ·{" "}
-                    {book.targets
-                      .map((target) => `${target.slot}: ${target.state}`)
-                      .join(" · ")}
-                  </p>
-                </div>
-              </article>
-            ))}
-            {selectedBooks.data?.total === 0 ? (
-              <p className="muted">No activated selection recorded yet.</p>
-            ) : null}
-            <div className="button-row">
-              {selectedOffset > 0 ? (
-                <button
-                  onClick={() =>
-                    setSelectedOffset(Math.max(0, selectedOffset - 25))
-                  }
-                >
-                  Previous selected books
-                </button>
-              ) : null}
-              {selectedOffset + 25 < (selectedBooks.data?.total ?? 0) ? (
-                <button onClick={() => setSelectedOffset(selectedOffset + 25)}>
-                  Next selected books
-                </button>
-              ) : null}
-            </div>
-          </>
-        )}
+        <h3>Progress</h3>
+        <ActivityRequests
+          canManage
+          admin={admin}
+          status="all"
+          sort="newest"
+          q={follow.name}
+        />
+        <p>
+          <Link to={`/requests?q=${encodeURIComponent(follow.name)}`}>
+            All requests for {follow.name}
+          </Link>
+        </p>
       </section>
       <section className="panel editor">
         <h3>Books and exclusions</h3>

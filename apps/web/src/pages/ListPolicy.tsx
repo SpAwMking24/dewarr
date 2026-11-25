@@ -26,8 +26,11 @@ export default function ListPolicy({
   listId,
   follow = false,
   downloadAll = false,
+  onActivated,
 }: {
   listId: string;
+  /** Called once an activation (such as Download all) has been saved. */
+  onActivated?: () => void;
   follow?: boolean;
   /** Preselect automatic mode and "all missing books" (author "Download all"). */
   downloadAll?: boolean;
@@ -118,6 +121,7 @@ export default function ListPolicy({
             policy={policy.data}
             saved={saved}
             downloadAll={downloadAll && !consumed}
+            onActivated={onActivated}
           />
         </>
       ) : null}
@@ -177,12 +181,14 @@ function PolicyEditor({
   policy,
   saved,
   downloadAll = false,
+  onActivated,
 }: {
   listId: string;
   follow: boolean;
   policy: Policy | null;
   saved: (value: Policy) => void;
   downloadAll?: boolean;
+  onActivated?: () => void;
 }) {
   const [mode, setMode] = useState<Input["mode"]>(
     downloadAll
@@ -385,7 +391,27 @@ function PolicyEditor({
           { params: { path: { ...path, identifier: previewId! } } },
         ),
       ),
-    onSuccess: saved,
+    onSuccess: (value) => {
+      saved(value);
+      onActivated?.();
+    },
+  });
+  const autoActivate = useRef(downloadAll);
+  useEffect(() => {
+    // Download all: once the missing books are previewed, queue them without
+    // another confirmation. Requests then show every book's progress.
+    const data = receipt.data;
+    if (
+      autoActivate.current &&
+      data &&
+      data.configuration.mode === "automatic" &&
+      data.selected > 0 &&
+      !activate.isPending &&
+      !activate.isSuccess
+    ) {
+      autoActivate.current = false;
+      activate.mutate();
+    }
   });
   const changed = () => {
     key.current = randomUUID();
@@ -610,6 +636,22 @@ function PolicyEditor({
             )}
           </fieldset>
         </form>
+      ) : receipt.data && downloadAll ? (
+        <div aria-label="Download all" role="status">
+          {receipt.data.selected > 0 ? (
+            <p>
+              Adding {receipt.data.selected} missing books to your requests…
+            </p>
+          ) : (
+            <>
+              <p>Every book by this author is already in your library.</p>
+              <button onClick={() => onActivated?.()}>Done</button>
+            </>
+          )}
+          {activate.error ? (
+            <button onClick={() => activate.mutate()}>Try again</button>
+          ) : null}
+        </div>
       ) : receipt.data ? (
         <div aria-label="List activation preview">
           <h3>Review {receipt.data.configuration.mode} mode</h3>

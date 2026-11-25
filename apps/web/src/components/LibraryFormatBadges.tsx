@@ -1,8 +1,11 @@
 import { BookOpen, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Work } from "../api/client";
+import { useReadableEbook } from "../hooks/useReadableEbook";
 
 export default function LibraryFormatBadges({ work }: { work: Work }) {
+  const readable = useReadableEbook(work.id, work.availability.ebook);
+  const readHref = readable.data ? `/read/${readable.data.asset_id}` : null;
   return (
     <>
       {(["ebook", "audio"] as const).map((medium) => {
@@ -15,13 +18,29 @@ export default function LibraryFormatBadges({ work }: { work: Work }) {
           work.availability[medium === "audio" ? "audio_stale" : "ebook_stale"];
         const Icon = medium === "audio" ? Headphones : BookOpen;
         const name = medium === "audio" ? "Audiobook" : "Ebook";
+        const openHref = medium === "ebook" ? readHref : null;
+        const label = (
+          <>
+            <Icon size={15} aria-hidden="true" /> {name}
+          </>
+        );
         return (
           <span
             className="status owned"
             key={medium}
             title={`${count} ${name.toLowerCase()} ${count === 1 ? "version" : "versions"} in your library`}
           >
-            <Icon size={15} aria-hidden="true" /> {name}
+            {openHref ? (
+              <Link
+                className="format-open"
+                to={openHref}
+                aria-label={`Read ${work.title} in Dewarr`}
+              >
+                {label}
+              </Link>
+            ) : (
+              label
+            )}
             {stale && <small>Last known</small>}
             {count > 1 && (
               <Link
