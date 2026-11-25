@@ -9,6 +9,9 @@ let csrf = "";
 export function setCsrf(value: string) {
   csrf = value;
 }
+export function getCsrf() {
+  return csrf;
+}
 
 export const api = createClient<paths>({
   baseUrl: "",

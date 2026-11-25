@@ -59,6 +59,7 @@ from app.api import (
     organization,
     plex,
     prowlarr,
+    reader,
     reading_accounts,
     recovery,
     release_profiles,
@@ -191,6 +192,7 @@ def create_app() -> FastAPI:
     app.include_router(list_policies.router, prefix="/api")
     app.include_router(integrations.router, prefix="/api")
     app.include_router(library.router, prefix="/api")
+    app.include_router(reader.router, prefix="/api")
     app.include_router(library_review.router, prefix="/api")
     app.include_router(library_combine.router, prefix="/api")
     app.include_router(metadata.router, prefix="/api")

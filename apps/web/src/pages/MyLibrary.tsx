@@ -5,9 +5,12 @@ import LibraryGroups from "../components/LibraryGroups";
 import BookDialog from "../components/BookDialog";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { BookOpen } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, result } from "../api/client";
+import { fetchContinueReading } from "../api/reader";
 import type { components } from "../api/schema";
+import "../reader.css";
 import { BookCard, Empty, Loading, Notice } from "../components";
 import AssetMatchForm from "../components/AssetMatchForm";
 import CollectionContents from "./CollectionContents";
@@ -197,6 +200,9 @@ export default function MyLibrary({
               books; repeated syncs do not reset this order.
             </p>
           )}
+          {!filtered && (medium === "any" || medium === "ebook") && (
+            <ContinueReadingShelf />
+          )}
           <LibraryBooks
             q={q}
             medium={medium}
@@ -207,6 +213,58 @@ export default function MyLibrary({
         </>
       )}
     </>
+  );
+}
+
+function ContinueReadingShelf() {
+  const query = useQuery({
+    queryKey: ["continue-reading"],
+    queryFn: ({ signal }) => fetchContinueReading(signal),
+    staleTime: 30_000,
+    retry: false,
+  });
+  if (!query.data?.length) return null;
+  return (
+    <section className="continue-reading-shelf" aria-label="Continue reading">
+      <h2>Continue reading</h2>
+      <div className="continue-reading-grid">
+        {query.data.map((item) => {
+          const pct = Math.round(item.fraction * 100);
+          return (
+            <Link
+              key={item.asset_id}
+              to={`/read/${item.asset_id}`}
+              className="continue-reading-card"
+            >
+              {item.cover_url ? (
+                <img
+                  src={item.cover_url}
+                  alt=""
+                  className="continue-reading-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <span
+                  className="continue-reading-cover-placeholder"
+                  aria-hidden="true"
+                >
+                  <BookOpen size={20} />
+                </span>
+              )}
+              <span className="continue-reading-meta">
+                <strong>{item.title}</strong>
+                <small>
+                  {item.chapter ? `${item.chapter} · ${pct}%` : `${pct}% read`}
+                </small>
+                <span className="continue-reading-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.max(2, pct)}%` }} />
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -479,6 +537,10 @@ export function LibraryAssets({
                     </td>
                     <td>
                       <div className="table-actions">
+                        {asset.medium === "ebook" &&
+                          asset.state !== "missing-confirmed" && (
+                            <Link to={`/read/${asset.id}`}>Read</Link>
+                          )}
                         <a
                           href={asset.open_url}
                           target="_blank"
@@ -621,6 +683,15 @@ export function LibraryAssets({
                     <span className="status">Needs matching</span>
                   )}
                   <div className="button-row">
+                    {asset.medium === "ebook" &&
+                      asset.state !== "missing-confirmed" && (
+                        <Link
+                          className="button-link primary"
+                          to={`/read/${asset.id}`}
+                        >
+                          Read ebook
+                        </Link>
+                      )}
                     <a href={asset.open_url} target="_blank" rel="noreferrer">
                       Open in {libraryApp(asset.server_kind)}
                     </a>

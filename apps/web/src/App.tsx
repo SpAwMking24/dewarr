@@ -41,6 +41,7 @@ const DiscoverBook = lazy(() => import("./pages/DiscoverBook"));
 const Discover = lazy(() => import("./pages/Discover"));
 const CommunityLists = lazy(() => import("./pages/CommunityLists"));
 const BookDetail = lazy(() => import("./pages/BookDetail"));
+const EbookReader = lazy(() => import("./pages/EbookReader"));
 const Following = lazy(() => import("./pages/Following"));
 const AuthorDetail = lazy(() => import("./pages/AuthorDetail"));
 const Series = lazy(() => import("./pages/Series"));
@@ -638,6 +639,7 @@ function Shell({ auth }: { auth: Auth }) {
                   />
                 }
               />
+              <Route path="/read/:assetId" element={<EbookReader />} />
               <Route
                 path="/search"
                 element={

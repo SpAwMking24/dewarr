@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -1502,3 +1503,26 @@ class RequestQuotaCharge(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     size_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     exempt: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ReadingProgress(Identity, Base):
+    """Per-user reading position for an owned ebook library asset."""
+
+    __tablename__ = "reading_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "asset_id"),
+        CheckConstraint("fraction >= 0 AND fraction <= 1"),
+    )
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    asset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("library_assets.id", ondelete="CASCADE"), index=True
+    )
+    work_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("works.id", ondelete="SET NULL"), index=True
+    )
+    cfi: Mapped[str | None] = mapped_column(Text)
+    fraction: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    chapter: Mapped[str | None] = mapped_column(String(400))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

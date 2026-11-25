@@ -8,7 +8,7 @@ import LibraryFormatBadges from "../components/LibraryFormatBadges";
 import PartSets from "../components/CombineParts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Settings2 } from "lucide-react";
+import { BookOpen, Check, Settings2 } from "lucide-react";
 import {
   Link,
   Navigate,
@@ -17,6 +17,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { api, result } from "../api/client";
+import { fetchWorkEbook } from "../api/reader";
 import {
   BookHero,
   BookOverview,
@@ -171,6 +172,13 @@ function BookDetailContent({
   );
   const watching =
     watch.data?.state === "waiting" || watch.data?.state === "wanted";
+  const readableEbook = useQuery({
+    queryKey: ["work-ebook", id],
+    enabled: !!book.data?.availability.ebook,
+    queryFn: ({ signal }) => fetchWorkEbook(id, signal),
+    staleTime: 60_000,
+    retry: false,
+  });
   if (book.isPending) return <ContentSkeleton kind="book" />;
   if (book.error || !book.data) return <Notice error={book.error} />;
   const work = book.data;
@@ -285,6 +293,18 @@ function BookDetailContent({
           )}
         </div>
         <div className="reader-actions">
+          {readableEbook.data && (
+            <Link
+              className="button-link primary"
+              to={`/read/${readableEbook.data.asset_id}`}
+            >
+              <BookOpen size={16} aria-hidden="true" />
+              {readableEbook.data.progress &&
+              readableEbook.data.progress.fraction > 0.01
+                ? `Continue reading · ${Math.round(readableEbook.data.progress.fraction * 100)}%`
+                : "Read ebook"}
+            </Link>
+          )}
           {work.availability.owned && (
             <Link
               className="reader-action-link"
