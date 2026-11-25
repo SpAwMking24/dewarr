@@ -306,9 +306,6 @@ export default function ActivityRequests({
                   <th>Format</th>
                   <th>Status</th>
                   <th>Progress</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
                 </tr>
               </thead>
               {requests.data.items.map((request) => (
@@ -830,37 +827,6 @@ function RequestCard({
                     {target.attempt_message}
                   </p>
                 )}
-              </td>
-              <td>
-                <div className="request-transfer-progress">
-                  {target.state === "satisfied" ? (
-                    <span className="muted">Verified in library</span>
-                  ) : progress === 1 ? (
-                    <span className="muted">Download complete</span>
-                  ) : progress !== null ? (
-                    <>
-                      <span className="request-percent">
-                        {Math.round(progress * 100)}%
-                      </span>
-                      <progress
-                        max={1}
-                        value={progress}
-                        aria-label={`${request.work_title} ${mediumLabel(target.slot).toLowerCase()} download progress`}
-                      />
-                    </>
-                  ) : active ? (
-                    <span className="muted">Connecting…</span>
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
-                </div>
-                {telemetry && (
-                  <p className="request-transfer-telemetry muted">
-                    {telemetry}
-                  </p>
-                )}
-              </td>
-              <td>
                 <div className="request-row-tools">
                   {index === 0 && request.can_decide ? (
                     <>
@@ -901,10 +867,39 @@ function RequestCard({
                   )}
                 </div>
               </td>
+              <td>
+                <div className="request-transfer-progress">
+                  {target.state === "satisfied" ? (
+                    <span className="muted">Verified in library</span>
+                  ) : progress === 1 ? (
+                    <span className="muted">Download complete</span>
+                  ) : progress !== null ? (
+                    <>
+                      <span className="request-percent">
+                        {Math.round(progress * 100)}%
+                      </span>
+                      <progress
+                        max={1}
+                        value={progress}
+                        aria-label={`${request.work_title} ${mediumLabel(target.slot).toLowerCase()} download progress`}
+                      />
+                    </>
+                  ) : active ? (
+                    <span className="muted">Connecting…</span>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </div>
+                {telemetry && (
+                  <p className="request-transfer-telemetry muted">
+                    {telemetry}
+                  </p>
+                )}
+              </td>
             </tr>
             {isExpanded && (
               <tr id={detailsId} className="request-detail-row">
-                <td colSpan={5}>
+                <td colSpan={4}>
                   <div className="request-detail-content">
                     {plan.reviewable && (
                       <RequestReview target={target} onSettled={refresh} />
@@ -986,7 +981,7 @@ function RequestCard({
       })}
       {withdrawReason && (
         <tr>
-          <td colSpan={5} className="request-dialog-cell">
+          <td colSpan={4} className="request-dialog-cell">
             <BookDialog
               title="Withdraw request"
               close={() => setWithdrawReason(null)}

@@ -64,17 +64,14 @@
   width: 10%;
 }
 .request-ledger th:nth-child(3) {
-  width: 19%;
+  width: 34%;
 }
 .request-ledger th:nth-child(4) {
-  width: 15%;
+  width: 30%;
 }
 .request-ledger th:nth-child(5),
 .request-ledger th:nth-child(6) {
   width: 8%;
-}
-.request-ledger th:last-child {
-  width: 14%;
 }
 .request-ledger td {
   padding: 12px 10px;
