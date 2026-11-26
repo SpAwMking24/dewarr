@@ -24,6 +24,8 @@ export default function DownloadMatchReview({
   const [destinationId, setDestinationId] = useState("");
   const [complete, setComplete] = useState(false);
   const [reviewingFiles, setReviewingFiles] = useState(false);
+  const [edition, setEdition] = useState("");
+  const [picked, setPicked] = useState("");
   const prepared = useRef<{
     plan: Plan;
     destination: { id: string; revision: string };
@@ -70,6 +72,7 @@ export default function DownloadMatchReview({
     match?.candidates.filter((item) => item.work_id === download.work_id) || [];
   const identified = candidates.filter((item) => item.identifier_match);
   const candidate =
+    candidates.find((item) => item.version_id === edition) ||
     candidates.find((item) => item.version_id === match?.selected_version_id) ||
     (identified.length === 1 ? identified[0] : undefined);
   const issues = [
@@ -93,10 +96,24 @@ export default function DownloadMatchReview({
     group.medium !== download.medium ||
     !match ||
     match.truncated ||
-    identified.length > 1 ||
+    (identified.length > 1 && !edition) ||
     conflicts.length > 0 ||
     issues.length > 0 ||
     match.candidates.some(
+      (item) => item.identifier_match && item.work_id !== download.work_id,
+    );
+  // Several catalogue editions fit these files and nothing else is wrong: let the user choose.
+  const choosing =
+    blocked &&
+    !!group &&
+    group.medium === download.medium &&
+    !!match &&
+    !match.truncated &&
+    identified.length > 1 &&
+    !edition &&
+    conflicts.length === 0 &&
+    issues.length === 0 &&
+    !match.candidates.some(
       (item) => item.identifier_match && item.work_id !== download.work_id,
     );
   const unreadable =
@@ -224,7 +241,68 @@ export default function DownloadMatchReview({
       {context.isPending ? (
         <Loading />
       ) : data ? (
-        blocked ? (
+        choosing ? (
+          <>
+            <h3>Which edition is this?</h3>
+            <p>
+              These files fit more than one catalogue edition. Pick the one you
+              want this download filed under.
+            </p>
+            {!!match?.evidence.titles?.length && (
+              <p className="download-file-title">
+                <span>Title found in the files</span>
+                <strong>{match.evidence.titles.join(" · ")}</strong>
+              </p>
+            )}
+            <table className="edition-compare">
+              <thead>
+                <tr>
+                  <th aria-label="Choose" />
+                  <th>Edition</th>
+                  <th>Narrator</th>
+                  <th>Year</th>
+                  <th>Language</th>
+                  <th>Why it fits</th>
+                </tr>
+              </thead>
+              <tbody>
+                {identified.map((item) => (
+                  <tr
+                    key={item.version_id}
+                    data-selected={picked === item.version_id}
+                  >
+                    <td>
+                      <input
+                        type="radio"
+                        name="edition"
+                        aria-label={`Use ${item.version_title || item.title}`}
+                        checked={picked === item.version_id}
+                        onChange={() => setPicked(item.version_id)}
+                      />
+                    </td>
+                    <td>{item.version_title || item.title}</td>
+                    <td>{(item.narrators ?? []).join(", ") || "—"}</td>
+                    <td>{item.year ?? "—"}</td>
+                    <td>{item.language || "—"}</td>
+                    <td>{(item.reasons ?? []).join(" · ") || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="actions">
+              <button
+                className="primary"
+                disabled={!picked}
+                onClick={() => setEdition(picked)}
+              >
+                Use selected edition
+              </button>
+              <Link to={`/books/${download.work_id}?tab=sources`}>
+                Find another download
+              </Link>
+            </div>
+          </>
+        ) : blocked ? (
           <>
             <h3>This download needs a closer look</h3>
             <p>{reason}</p>
@@ -271,41 +349,33 @@ export default function DownloadMatchReview({
           <>
             <h3>Do these files contain the whole book?</h3>
             <p>
-              {download.message ||
-                "Automatic checks could not establish whether these files contain the complete book."}
+              Automatic checks could not tell whether every chapter is here.
+              Check the file list, then confirm.
             </p>
             <dl className="import-evidence">
               <div>
-                <dt>Inspected files</dt>
+                <dt>Files</dt>
                 <dd>
                   {group?.files.length || 0}{" "}
-                  {download.medium === "audio" ? "audio" : "ebook"} files ·
-                  readable files do not establish completeness
+                  {download.medium === "audio" ? "audio" : "ebook"}{" "}
+                  {group?.files.length === 1 ? "file" : "files"}
                 </dd>
               </div>
               <div>
-                <dt>Match evidence</dt>
+                <dt>Edition</dt>
                 <dd>
-                  {candidate?.reasons?.join(" · ") ||
-                    "No catalog edition was confidently identified. Your confirmation will use the inspected file edition."}
+                  {candidate
+                    ? candidate.version_title || candidate.title
+                    : "Taken from the files"}
                 </dd>
               </div>
               <div>
-                <dt>Library destination</dt>
+                <dt>Library folder</dt>
                 <dd>
                   {destination?.backend_path || "Choose a library folder below"}
                 </dd>
               </div>
-              <div>
-                <dt>File handling</dt>
-                <dd>Keep the download and add a library copy.</dd>
-              </div>
             </dl>
-            <p>
-              Check the file list and recording or edition details before
-              confirming that every chapter is included. Missing chapters cannot
-              be inferred from a successful file read.
-            </p>
             <label className="download-complete-check">
               <input
                 type="checkbox"

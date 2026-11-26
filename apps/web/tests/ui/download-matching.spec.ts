@@ -291,11 +291,34 @@ for (const scenario of [
     await expect(
       page.getByText("inspection-revision", { exact: false }),
     ).toHaveCount(0);
-    if (
-      scenario === "ambiguous" ||
-      scenario === "conflict" ||
-      scenario === "unknown-conflict"
-    ) {
+    if (scenario === "ambiguous") {
+      await expect(
+        review.getByRole("heading", { name: "Which edition is this?" }),
+      ).toBeVisible();
+      await expect(review.getByRole("row")).toHaveCount(3);
+      await expect(
+        review.getByRole("button", { name: "Use selected edition" }),
+      ).toBeDisabled();
+      await expect(
+        review.getByRole("link", { name: "Find another download" }),
+      ).toHaveAttribute("href", "/books/book?tab=sources");
+      await expect(
+        review.getByRole("button", { name: "Add to library" }),
+      ).toHaveCount(0);
+      await review.getByRole("radio").first().check();
+      await review
+        .getByRole("button", { name: "Use selected edition" })
+        .click();
+      await expect(
+        review.getByRole("heading", {
+          name: "Do these files contain the whole book?",
+        }),
+      ).toBeVisible();
+      expect(plans).toBe(0);
+      expect(errors).toEqual([]);
+      return;
+    }
+    if (scenario === "conflict" || scenario === "unknown-conflict") {
       await expect(
         review.getByRole("link", { name: "Find another download" }),
       ).toHaveAttribute("href", "/books/book?tab=sources");

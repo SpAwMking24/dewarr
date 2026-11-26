@@ -949,46 +949,48 @@ function RequestCard({
                         ))}
                       </div>
                     )}
-                    <details className="request-disclosure request-advanced">
-                      <summary>
-                        <ChevronRight
-                          size={14}
-                          aria-hidden
-                          className="request-details-chevron"
-                        />
-                        Advanced details
-                      </summary>
-                      <div className="request-detail-sections">
-                        {plan.reviewable && !!notes.length && (
-                          <div className="request-detail-summary">
-                            {notes.map((note) => (
-                              <p className="request-target-note" key={note}>
-                                {note}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                        {target.attempt_id &&
-                          target.can_view_download_history && (
-                            <DownloadRecoveryDetails
-                              attemptId={target.attempt_id}
-                              workId={request.work_id}
-                            />
+                    {admin && (
+                      <details className="request-disclosure request-advanced">
+                        <summary>
+                          <ChevronRight
+                            size={14}
+                            aria-hidden
+                            className="request-details-chevron"
+                          />
+                          Advanced details
+                        </summary>
+                        <div className="request-detail-sections">
+                          {plan.reviewable && !!notes.length && (
+                            <div className="request-detail-summary">
+                              {notes.map((note) => (
+                                <p className="request-target-note" key={note}>
+                                  {note}
+                                </p>
+                              ))}
+                            </div>
                           )}
-                        <RequestDetails request={request} />
-                        <ul className="request-reasons">
-                          {request.reasons.map((reason) => (
-                            <li key={reason.id}>
-                              {reason.label}
-                              {reason.active ? "" : " · Withdrawn"}
-                              {reason.decision_note && (
-                                <p>{reason.decision_note}</p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </details>
+                          {target.attempt_id &&
+                            target.can_view_download_history && (
+                              <DownloadRecoveryDetails
+                                attemptId={target.attempt_id}
+                                workId={request.work_id}
+                              />
+                            )}
+                          <RequestDetails request={request} />
+                          <ul className="request-reasons">
+                            {request.reasons.map((reason) => (
+                              <li key={reason.id}>
+                                {reason.label}
+                                {reason.active ? "" : " · Withdrawn"}
+                                {reason.decision_note && (
+                                  <p>{reason.decision_note}</p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </details>
+                    )}
                   </div>
                 </td>
               </tr>
