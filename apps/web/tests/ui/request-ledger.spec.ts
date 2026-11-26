@@ -227,7 +227,7 @@ test("requests show transfer telemetry, review actions and counts in compact row
   await page.reload();
   await expect(cover).toHaveJSProperty("naturalWidth", 200);
   expect(transientCoverAttempts).toBe(2);
-  await expect(review).toContainText("Needs review");
+  await expect(review).toContainText("Review");
   // Review happens in the row, not on another page.
   await expect(
     review.getByRole("button", { name: "Review", exact: true }),
@@ -312,11 +312,7 @@ test("requests show transfer telemetry, review actions and counts in compact row
     path: testInfo.outputPath("request-ledger-desktop.png"),
     fullPage: true,
   });
-  await review
-    .getByRole("button", {
-      name: "Needs review: The Martian audiobook request details",
-    })
-    .click();
+  await review.getByRole("button", { name: "Review", exact: true }).click();
   await expect(review).toContainText("Files need review");
   await review.getByText("Advanced details", { exact: true }).click();
   await review

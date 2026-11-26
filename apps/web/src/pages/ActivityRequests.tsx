@@ -732,6 +732,17 @@ function RequestCard({
               .filter((part) => part && !part.startsWith("—"))
               .join(" · ")
           : "";
+        const actionOnly =
+          !!plan.primary &&
+          !(
+            index === 0 &&
+            (request.can_decide || request.can_start_download)
+          ) &&
+          [
+            "Needs review",
+            "Source needs review",
+            "Download not started",
+          ].includes(label);
         return (
           <Fragment key={target.slot}>
             <tr
@@ -775,57 +786,63 @@ function RequestCard({
                 </span>
               </td>
               <td>
-                <button
-                  type="button"
-                  className="request-status"
-                  data-state={chipState(label)}
-                  title={["View request details", ...notes].join(". ")}
-                  aria-label={`${label}: ${request.work_title} ${mediumLabel(target.slot).toLowerCase()} request details`}
-                  aria-expanded={isExpanded}
-                  aria-controls={detailsId}
-                  onClick={() => setExpanded(isExpanded ? null : target.slot)}
-                >
-                  {spinning ? (
-                    <LoaderCircle
-                      size={14}
-                      className="source-download-spinner"
-                      aria-hidden
-                    />
-                  ) : label === "In library" ? (
-                    <CircleCheck size={14} aria-hidden />
-                  ) : label === "Needs review" ||
-                    label === "Source needs review" ||
-                    label === "Download needs attention" ||
-                    label === "Download not started" ? (
-                    <CircleAlert size={14} aria-hidden />
-                  ) : null}
-                  {label}
-                  <ChevronRight
-                    size={14}
-                    className="request-details-chevron"
-                    aria-hidden
-                  />
-                </button>
-                {[
-                  "Needs review",
-                  "Source needs review",
-                  "Searching sources",
-                  "Waiting for source",
-                  "Request queued",
-                  "Preparing download",
-                ].includes(label) && (
-                  <p className="request-status-hint">
-                    {target.review_message ||
-                      target.message ||
-                      (label === "Source needs review"
-                        ? "Choose a matching download source"
-                        : "Checking download files")}
-                  </p>
-                )}
-                {label === "Queued" && target.attempt_message && (
-                  <p className="request-status-hint">
-                    {target.attempt_message}
-                  </p>
+                {!actionOnly && (
+                  <>
+                    <button
+                      type="button"
+                      className="request-status"
+                      data-state={chipState(label)}
+                      title={["View request details", ...notes].join(". ")}
+                      aria-label={`${label}: ${request.work_title} ${mediumLabel(target.slot).toLowerCase()} request details`}
+                      aria-expanded={isExpanded}
+                      aria-controls={detailsId}
+                      onClick={() =>
+                        setExpanded(isExpanded ? null : target.slot)
+                      }
+                    >
+                      {spinning ? (
+                        <LoaderCircle
+                          size={14}
+                          className="source-download-spinner"
+                          aria-hidden
+                        />
+                      ) : label === "In library" ? (
+                        <CircleCheck size={14} aria-hidden />
+                      ) : label === "Needs review" ||
+                        label === "Source needs review" ||
+                        label === "Download needs attention" ||
+                        label === "Download not started" ? (
+                        <CircleAlert size={14} aria-hidden />
+                      ) : null}
+                      {label}
+                      <ChevronRight
+                        size={14}
+                        className="request-details-chevron"
+                        aria-hidden
+                      />
+                    </button>
+                    {[
+                      "Needs review",
+                      "Source needs review",
+                      "Searching sources",
+                      "Waiting for source",
+                      "Request queued",
+                      "Preparing download",
+                    ].includes(label) && (
+                      <p className="request-status-hint">
+                        {target.review_message ||
+                          target.message ||
+                          (label === "Source needs review"
+                            ? "Choose a matching download source"
+                            : "Checking download files")}
+                      </p>
+                    )}
+                    {label === "Queued" && target.attempt_message && (
+                      <p className="request-status-hint">
+                        {target.attempt_message}
+                      </p>
+                    )}
+                  </>
                 )}
                 <div className="request-row-tools">
                   {index === 0 && request.can_decide ? (
