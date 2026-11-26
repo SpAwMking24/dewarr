@@ -557,11 +557,24 @@ function Results({
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {!!best.assessment.explanation.length && (
+          {best.assessment.explanation.some(
+            (reason) =>
+              !/^Source:|seeders|^Seed count|popularity|completed downloads/i.test(
+                reason,
+              ),
+          ) && (
             <ul className="source-best-reasons">
-              {best.assessment.explanation.slice(0, 3).map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
+              {best.assessment.explanation
+                .filter(
+                  (reason) =>
+                    !/^Source:|seeders|^Seed count|popularity|completed downloads/i.test(
+                      reason,
+                    ),
+                )
+                .slice(0, 3)
+                .map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
             </ul>
           )}
           <div className="source-best-download">
