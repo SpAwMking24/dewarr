@@ -245,15 +245,6 @@ function AuthorRow({ follow }: { follow: Summary }) {
                 Updated {new Date(follow.last_success_at).toLocaleDateString()}
               </p>
             )}
-            {follow.mode !== "browse" && (
-              <p className="follow-freshness">
-                {follow.active
-                  ? follow.mode === "automatic"
-                    ? "Automatic downloads"
-                    : "Review requests"
-                  : "Downloads need review"}
-              </p>
-            )}
           </div>
         </div>
         <div className="follow-next">
@@ -289,10 +280,6 @@ function AuthorRow({ follow }: { follow: Summary }) {
           {!follow.latest_books?.length && (
             <p className="muted">No dated publications yet</p>
           )}
-          <Link className="follow-view-books" to={entityHref(follow)}>
-            View {follow.source_kind === "author" ? "author" : "series"}{" "}
-            <ArrowRight size={13} aria-hidden="true" />
-          </Link>
         </div>
       </div>
       {selection && (
@@ -526,9 +513,6 @@ function Overview() {
           <h1>Following</h1>
           <p>Keep up with the authors and series you enjoy.</p>
         </div>
-        <Link to="/search" className="reader-action-link">
-          <Search size={14} aria-hidden="true" /> Find authors
-        </Link>
       </header>
       <DetailTabs tabs={tabs} selected={tab} label="Following sections" />
       <div
@@ -547,12 +531,6 @@ function Overview() {
             />
             <div className="follow-section-heading">
               <h2>Your {tab}</h2>
-              {page && (
-                <span className="muted" role="status">
-                  {page.total}{" "}
-                  {page.total === 1 && tab === "authors" ? "author" : tab}
-                </span>
-              )}
             </div>
             <div className="follow-toolbar">
               <form
