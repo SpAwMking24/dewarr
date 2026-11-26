@@ -241,13 +241,12 @@ test("requests show transfer telemetry, review actions and counts in compact row
       .getByRole("navigation", { name: "Main navigation" })
       .getByRole("link", { name: "Requests", exact: true }),
   ).toContainText("3");
-  const filters = page.getByRole("navigation", { name: "Request filters" });
-  await expect(filters.getByRole("link")).toHaveText([
-    "Needs you2",
-    "In progress",
-    "In library",
-    "Closed",
-  ]);
+  await expect(
+    page.getByRole("link", { name: "View completed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Request filters" }),
+  ).toHaveCount(0);
   for (const row of await downloading.getByRole("row").all())
     expect((await row.boundingBox())!.height).toBeLessThan(110);
   await expect(

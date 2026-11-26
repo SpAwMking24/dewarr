@@ -146,20 +146,14 @@ for (const role of ["admin", "member", "viewer"]) {
     await expect(
       page.getByRole("heading", { name: "Background activity" }),
     ).toHaveCount(0);
-    const requestFilters = page.getByRole("navigation", {
-      name: "Request filters",
-    });
-    await requestFilters
-      .getByRole("link", { name: "In progress", exact: true })
-      .click();
     await expect(
       page.getByText("Nothing in progress. Find a book to request it.", {
         exact: true,
       }),
     ).toBeVisible();
     await expect(
-      requestFilters.getByRole("link", { name: "Needs you", exact: true }),
-    ).toHaveCount(1);
+      page.getByRole("navigation", { name: "Request filters" }),
+    ).toHaveCount(0);
     await page.goto("/activity#downloads");
     await expect(page).toHaveURL(/\/requests#downloads$/);
     await page.goto("/activity?status=completed");

@@ -6,22 +6,6 @@ import { requestFilter, type RequestFilter } from "./requestFilters";
 
 const SavedRequests = lazy(() => import("./ActivityRequests"));
 
-/** Four places a request can be: waiting on you, on its way, done, or closed. */
-const filters: { id: RequestFilter; title: string }[] = [
-  { id: "attention", title: "Needs you" },
-  { id: "all", title: "In progress" },
-  { id: "library", title: "In library" },
-  { id: "closed", title: "Closed" },
-];
-
-/** Older links (and bookmarks) still open, under the tab they now belong to. */
-function tabFor(status: RequestFilter): RequestFilter {
-  if (status === "pending" || status === "review") return "attention";
-  if (status === "downloading" || status === "open") return "all";
-  if (status === "declined" || status === "withdrawn") return "closed";
-  return status;
-}
-
 export default function Requests({
   admin,
   canRequest,
@@ -61,21 +45,16 @@ export default function Requests({
     <div className="requests-page">
       <h1 className="workspace-title">Requests</h1>
       <div className="page-tabs-bar">
-        <nav className="page-tabs" aria-label="Request filters">
-          {filters.map((filter) => (
-            <Link
-              key={filter.id}
-              aria-label={filter.title}
-              to={queryFor(filter.id)}
-              aria-current={tabFor(status) === filter.id ? "page" : undefined}
-            >
-              {filter.title}
-              {filter.id === "attention" && attention > 0 && (
-                <span className="requests-tab-count">{attention}</span>
-              )}
-            </Link>
-          ))}
-        </nav>
+        <p className="muted">
+          {status === "all" || status === "downloading" || status === "open" ? (
+            <Link to={queryFor("library")}>View completed</Link>
+          ) : (
+            <Link to={queryFor("all")}>Back to active downloads</Link>
+          )}
+          {attention > 0 && status === "all" && (
+            <span className="requests-tab-count">{attention}</span>
+          )}
+        </p>
         <div className="page-tabs-tools">
           <label className="request-sort">
             <span className="sr-only">Sort</span>

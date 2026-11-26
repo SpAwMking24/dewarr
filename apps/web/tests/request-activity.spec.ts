@@ -244,21 +244,11 @@ test("activity requests preserve independent reasons and route missing media to 
     (await (await page.request.get("/api/library/assets")).json()).total,
   ).toBe(inventory.total);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const filters = page.getByRole("navigation", { name: "Request filters" });
-  const filterPositions = await filters
-    .getByRole("link")
-    .evaluateAll((links) =>
-      links.map((link) => link.getBoundingClientRect().top),
-    );
-  expect(new Set(filterPositions).size).toBe(1);
-  await filters.getByRole("link", { name: "In library", exact: true }).click();
+  await page.getByRole("link", { name: "View completed" }).click();
   await expect(
-    filters.getByRole("link", { name: "In library", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
-  await filters.getByRole("link", { name: "Needs you", exact: true }).click();
-  await expect(
-    filters.getByRole("link", { name: "Needs you", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
+    page.getByRole("link", { name: "Back to active downloads" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Back to active downloads" }).click();
   await expect(
     page.getByRole("region", { name: "Requests", exact: true }),
   ).toBeVisible();
