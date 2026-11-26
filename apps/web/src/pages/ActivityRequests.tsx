@@ -13,7 +13,6 @@ import {
   Download,
   ExternalLink,
   Headphones,
-  RefreshCw,
   Search,
   Undo2,
   X,
@@ -27,17 +26,13 @@ import InfiniteScroll from "../components/InfiniteScroll";
 import BookDialog from "../components/BookDialog";
 import { usePagedQuery } from "../hooks/usePagedQuery";
 import { randomUUID } from "../randomUUID";
-import DownloadConstraints from "./DownloadConstraints";
 import DownloadRepair from "./DownloadRepair";
-import DownloadRecoveryDetails from "../components/DownloadRecoveryDetails";
-import { EffectivePreferences } from "./PreferenceFields";
 import {
   nextRequestOffset,
   requestCountLabel,
   type RequestFilter,
 } from "./requestFilters";
 import { liveDownloadStates, statusLabel } from "./requestStatus";
-import { EffectiveScope } from "./ScopeFields";
 
 type Request = components["schemas"]["RequestView"];
 type Target = components["schemas"]["TargetView"];
@@ -455,13 +450,6 @@ function targetPlan(
       icon: Search,
       href: `/books/${request.work_id}?tab=sources&request=${request.id}&slot=${target.slot}`,
     };
-  if (canManage && target.can_recheck && target.attempt_id)
-    more.push({
-      key: `recheck-${target.slot}`,
-      label: qualify("Recheck"),
-      icon: RefreshCw,
-      onSelect: () => onTransfer(target.attempt_id!, false),
-    });
   if (target.next_action === "selected-release" && target.source_artifact_id)
     more.push({
       key: `release-${target.slot}`,
@@ -591,65 +579,11 @@ function RequestReview({
       {inspection.data?.download && (
         <DownloadImportReview inspection={inspection.data} compact />
       )}
-      {target.attempt_id && <RejectDownload attemptId={target.attempt_id} />}
     </div>
   );
 }
 
 /** "Not this book": block the release and search for a replacement with the same requirements. */
-function RejectDownload({ attemptId }: { attemptId: string }) {
-  const cache = useQueryClient();
-  const detail = useQuery({
-    queryKey: ["downloads", "detail", attemptId],
-    queryFn: async ({ signal }) =>
-      result(
-        await api.GET("/api/acquisition/downloads/{attempt_id}", {
-          signal,
-          params: { path: { attempt_id: attemptId } },
-        }),
-      ),
-  });
-  const reject = useMutation({
-    mutationFn: async () =>
-      result(
-        await api.POST("/api/acquisition/recovery/reports", {
-          body: {
-            selection_id: detail.data!.selection_id,
-            reason: "wrong-book",
-            require_approval: false,
-          },
-        }),
-      ),
-    onSuccess: () =>
-      Promise.all(
-        ["requests", "downloads", "activity", "release-blocklist"].map((key) =>
-          cache.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
-  });
-  if (!detail.data?.can_report_problem) return null;
-  return (
-    <div className="request-reject">
-      {reject.isSuccess ? (
-        <p role="status">
-          Rejected. Dewarr is searching for a different download.
-        </p>
-      ) : (
-        <button
-          type="button"
-          data-danger
-          disabled={reject.isPending}
-          onClick={() => reject.mutate()}
-        >
-          <X size={14} aria-hidden />
-          Not this book, find another
-        </button>
-      )}
-      <Notice error={reject.error} />
-    </div>
-  );
-}
-
 function RequestCard({
   request,
   canManage,
@@ -949,48 +883,6 @@ function RequestCard({
                         ))}
                       </div>
                     )}
-                    {admin && (
-                      <details className="request-disclosure request-advanced">
-                        <summary>
-                          <ChevronRight
-                            size={14}
-                            aria-hidden
-                            className="request-details-chevron"
-                          />
-                          Advanced details
-                        </summary>
-                        <div className="request-detail-sections">
-                          {plan.reviewable && !!notes.length && (
-                            <div className="request-detail-summary">
-                              {notes.map((note) => (
-                                <p className="request-target-note" key={note}>
-                                  {note}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                          {target.attempt_id &&
-                            target.can_view_download_history && (
-                              <DownloadRecoveryDetails
-                                attemptId={target.attempt_id}
-                                workId={request.work_id}
-                              />
-                            )}
-                          <RequestDetails request={request} />
-                          <ul className="request-reasons">
-                            {request.reasons.map((reason) => (
-                              <li key={reason.id}>
-                                {reason.label}
-                                {reason.active ? "" : " · Withdrawn"}
-                                {reason.decision_note && (
-                                  <p>{reason.decision_note}</p>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </details>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -1052,40 +944,4 @@ function transferTime(value?: number | null) {
   if (value < 60) return "< 1m";
   if (value < 3600) return `${Math.ceil(value / 60)}m`;
   return `${Math.floor(value / 3600)}h ${Math.ceil((value % 3600) / 60)}m`;
-}
-
-function RequestDetails({ request }: { request: Request }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <details
-      className="request-preferences request-disclosure"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>
-        <ChevronRight
-          size={14}
-          aria-hidden
-          className="request-details-chevron"
-        />
-        Request preferences
-      </summary>
-      {open && (
-        <div className="request-preferences-body">
-          <EffectiveScope
-            specification={request.specification}
-            origins={request.release_policy?.scope_origins}
-          />
-          {request.release_policy && (
-            <EffectivePreferences
-              preferences={request.release_policy.preferences}
-              origins={request.release_policy.origins || {}}
-            />
-          )}
-          <DownloadConstraints
-            value={request.specification.download_constraints}
-          />
-        </div>
-      )}
-    </details>
-  );
 }

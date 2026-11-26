@@ -553,10 +553,6 @@ function Results({
               best.release.size_bytes == null
                 ? ""
                 : transferSize(best.release.size_bytes),
-              best.release.seeders == null
-                ? ""
-                : `${best.release.seeders.toLocaleString()} seeders`,
-              sourceName(best.release),
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -775,7 +771,7 @@ function Results({
                           {item.release.title}
                         </button>
                         <small>
-                          {sourceName(item.release)} · #{rank + 1}
+                          #{rank + 1}
                           {item.assessment.identity === "possible"
                             ? " · Needs checking"
                             : item.assessment.identity === "unmatched"

@@ -344,3 +344,22 @@
     overflow-x: auto;
   }
 }
+
+.edition-compare {
+  table-layout: auto;
+}
+.edition-compare td,
+.edition-compare th {
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+.edition-compare td:first-child {
+  width: 2rem;
+}
+.edition-compare td small {
+  display: block;
+  margin-top: 0.25rem;
+  opacity: 0.65;
+  overflow-wrap: break-word;
+}

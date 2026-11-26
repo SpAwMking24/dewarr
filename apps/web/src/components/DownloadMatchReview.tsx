@@ -262,7 +262,6 @@ export default function DownloadMatchReview({
                   <th>Narrator</th>
                   <th>Year</th>
                   <th>Language</th>
-                  <th>Why it fits</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,11 +279,13 @@ export default function DownloadMatchReview({
                         onChange={() => setPicked(item.version_id)}
                       />
                     </td>
-                    <td>{item.version_title || item.title}</td>
+                    <td>
+                      {item.version_title || item.title}
+                      <small>{(item.reasons ?? []).join(" · ")}</small>
+                    </td>
                     <td>{(item.narrators ?? []).join(", ") || "—"}</td>
                     <td>{item.year ?? "—"}</td>
                     <td>{item.language || "—"}</td>
-                    <td>{(item.reasons ?? []).join(" · ") || "—"}</td>
                   </tr>
                 ))}
               </tbody>

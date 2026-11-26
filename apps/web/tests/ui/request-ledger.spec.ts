@@ -312,21 +312,10 @@ test("requests show transfer telemetry, review actions and counts in compact row
     fullPage: true,
   });
   await review.getByRole("button", { name: "Review", exact: true }).click();
-  await expect(review).toContainText("Files need review");
-  await review.getByText("Advanced details", { exact: true }).click();
-  await review
-    .getByText("Download history and recovery", { exact: true })
-    .click();
-  await expect(
-    review.getByRole("list", { name: "Download attempt chain" }),
-  ).toContainText("The Martian — audiobook");
   await page.screenshot({
     path: testInfo.outputPath("request-details-desktop.png"),
     fullPage: true,
   });
-  await expect(
-    review.getByRole("button", { name: "Recheck", exact: true }),
-  ).toBeVisible();
   await downloading
     .getByRole("button", {
       name: "Downloading: Project Hail Mary audiobook request details",

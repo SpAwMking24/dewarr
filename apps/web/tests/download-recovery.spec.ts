@@ -177,26 +177,6 @@ test("recovery settings preserve source overrides and manage the release blockli
       name: /Recovery activity book audiobook request details$/,
     })
     .click();
-  await page.getByText("Advanced details", { exact: true }).click();
-  await page
-    .getByText("Download history and recovery", { exact: true })
-    .click();
-  await expect(
-    page.getByRole("list", { name: "Download attempt chain" }),
-  ).toContainText("First release");
-  await page
-    .getByRole("button", { name: "Report a problem", exact: true })
-    .click();
-  await page.getByLabel("Problem with this release").selectOption("bad-audio");
-  await page
-    .getByLabel("Wait for administrator approval before replacement")
-    .check();
-  await page
-    .getByRole("button", { name: "Report and request replacement" })
-    .click();
-  await expect(
-    page.getByText("Waiting for administrator approval", { exact: true }),
-  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
