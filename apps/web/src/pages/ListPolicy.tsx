@@ -27,13 +27,19 @@ export default function ListPolicy({
   follow = false,
   downloadAll = false,
   medium: presetMedium,
+  headless = false,
   onActivated,
+  onError,
 }: {
   listId: string;
   /** Skip the chooser: Download all for this medium. */
   medium?: "ebook" | "audio" | "both";
+  /** Run preview + activate silently without rendering any acquisition UI. */
+  headless?: boolean;
   /** Called once an activation (such as Download all) has been saved. */
-  onActivated?: () => void;
+  onActivated?: (selectedCount?: number) => void;
+  /** Called if headless activation fails or is blocked. */
+  onError?: (message: string) => void;
   follow?: boolean;
   /** Preselect automatic mode and "all missing books" (author "Download all"). */
   downloadAll?: boolean;
@@ -86,6 +92,30 @@ export default function ListPolicy({
       ),
     onSuccess: saved,
   });
+  const reportedPolicyError = useRef(false);
+  useEffect(() => {
+    if (headless && policy.error && !reportedPolicyError.current) {
+      reportedPolicyError.current = true;
+      onError?.(policy.error.message || "Could not start. Try again.");
+    }
+  }, [headless, policy.error, onError]);
+  if (headless) {
+    if (!policy.isSuccess) return null;
+    return (
+      <PolicyEditor
+        key={`${listId}:${policy.data?.revision || 0}`}
+        listId={listId}
+        follow={follow}
+        policy={policy.data}
+        saved={saved}
+        downloadAll={downloadAll && !consumed}
+        presetMedium={presetMedium}
+        headless
+        onActivated={onActivated}
+        onError={onError}
+      />
+    );
+  }
   return (
     <section className="panel editor" aria-label="List acquisition policy">
       {!downloadAll && (
@@ -190,15 +220,19 @@ function PolicyEditor({
   saved,
   downloadAll = false,
   presetMedium,
+  headless = false,
   onActivated,
+  onError,
 }: {
   presetMedium?: "ebook" | "audio" | "both";
+  headless?: boolean;
   listId: string;
   follow: boolean;
   policy: Policy | null;
   saved: (value: Policy) => void;
   downloadAll?: boolean;
-  onActivated?: () => void;
+  onActivated?: (selectedCount?: number) => void;
+  onError?: (message: string) => void;
 }) {
   const [mode, setMode] = useState<Input["mode"]>(
     downloadAll
@@ -405,14 +439,25 @@ function PolicyEditor({
       ),
     onSuccess: (value) => {
       saved(value);
-      onActivated?.();
+      onActivated?.(receipt.data?.selected);
     },
   });
   const autoActivate = useRef(downloadAll);
+  const autoEmptyReported = useRef(false);
   useEffect(() => {
     // Download all: once the missing books are previewed, queue them without
     // another confirmation. Requests then show every book's progress.
     const data = receipt.data;
+    if (
+      headless &&
+      data &&
+      data.selected === 0 &&
+      !autoEmptyReported.current
+    ) {
+      autoEmptyReported.current = true;
+      onActivated?.(0);
+      return;
+    }
     if (
       autoActivate.current &&
       data &&
@@ -498,6 +543,22 @@ function PolicyEditor({
             ". Check Settings, then Libraries."
           : null
       : null;
+  const headlessError =
+    blockedReason ||
+    options.error?.message ||
+    profiles.error?.message ||
+    preview.error?.message ||
+    receipt.error?.message ||
+    activate.error?.message ||
+    null;
+  const reportedError = useRef(false);
+  useEffect(() => {
+    if (headless && headlessError && !reportedError.current) {
+      reportedError.current = true;
+      onError?.(headlessError);
+    }
+  }, [headless, headlessError, onError]);
+  if (headless) return null;
   return (
     <>
       {blockedReason && <p role="alert">{blockedReason}</p>}

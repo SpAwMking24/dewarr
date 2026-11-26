@@ -178,12 +178,12 @@ export function DownloadAllChoice({
   });
   const [medium, setMedium] = useState<"ebook" | "audio" | "both" | null>(null);
   const [listId, setListId] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [done, setDone] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [doneCount, setDoneCount] = useState<number | null>(null);
   const live = useQuery({
     queryKey: ["following"],
     queryFn: async () => result(await api.GET("/api/following")),
-    enabled: !!listId,
+    enabled: !!listId && medium !== null,
     refetchInterval: 1500,
   });
   const current = live.data?.find((f) => f.list_id === (listId || ""));
@@ -191,21 +191,17 @@ export function DownloadAllChoice({
     !!current &&
     current.subscription.enabled &&
     current.subscription.completeness === "verified-observation";
-  const disabled = query.isPending || !!query.error || create.isPending;
-  if (done)
-    return (
-      <span className="follow-feedback" role="status">
-        Added to your requests. <Link to="/requests">View requests</Link>
-      </span>
-    );
+  const busy = medium !== null;
+  const disabled = query.isPending || !!query.error || create.isPending || busy;
   const start = async (value: "ebook" | "audio" | "both") => {
-    setFailed(false);
+    setErrorMessage(null);
+    setDoneCount(null);
     setMedium(value);
     try {
       setListId(follow?.list_id || (await create.mutateAsync()).list_id);
     } catch {
       setMedium(null);
-      setFailed(true);
+      setErrorMessage("Could not start. Try again.");
     }
   };
   return (
@@ -214,58 +210,75 @@ export function DownloadAllChoice({
       role="group"
       aria-label={"Download all books by " + name}
     >
-      {medium === null ? (
-        <>
-          <span className="download-all-label">
-            <Download size={14} aria-hidden="true" />
-            Download all
-          </span>
-          <div className="download-all-buttons">
-            <button
-              type="button"
-              className="download-all-btn"
-              disabled={disabled}
-              onClick={() => void start("ebook")}
-            >
-              <BookOpen size={13} aria-hidden="true" />
-              Ebooks
-            </button>
-            <button
-              type="button"
-              className="download-all-btn"
-              disabled={disabled}
-              onClick={() => void start("audio")}
-            >
-              <Headphones size={13} aria-hidden="true" />
-              Audiobooks
-            </button>
-            <button
-              type="button"
-              className="download-all-btn download-all-btn-both"
-              disabled={disabled}
-              onClick={() => void start("both")}
-            >
-              Both
-            </button>
-          </div>
-        </>
-      ) : ready && listId ? (
+      <span className="download-all-label">
+        <Download size={14} aria-hidden="true" />
+        Download all
+      </span>
+      <div className="download-all-buttons">
+        <button
+          type="button"
+          className="download-all-btn"
+          disabled={disabled}
+          onClick={() => void start("ebook")}
+        >
+          <BookOpen size={13} aria-hidden="true" />
+          Ebooks
+        </button>
+        <button
+          type="button"
+          className="download-all-btn"
+          disabled={disabled}
+          onClick={() => void start("audio")}
+        >
+          <Headphones size={13} aria-hidden="true" />
+          Audiobooks
+        </button>
+        <button
+          type="button"
+          className="download-all-btn download-all-btn-both"
+          disabled={disabled}
+          onClick={() => void start("both")}
+        >
+          Both
+        </button>
+      </div>
+      {busy && (
+        <span className="download-all-status" role="status">
+          Starting…
+        </span>
+      )}
+      {busy && ready && listId && (
         <ListPolicy
           key={listId + medium}
           listId={listId}
           follow
           downloadAll
           medium={medium}
-          onActivated={() => setDone(true)}
+          headless
+          onActivated={(count) => {
+            setMedium(null);
+            setDoneCount(count ?? 1);
+          }}
+          onError={(message) => {
+            setMedium(null);
+            setErrorMessage(message);
+          }}
         />
-      ) : (
-        <span className="download-all-status" role="status">
-          Checking the author's books…
+      )}
+      {!busy && doneCount !== null && (
+        <span className="follow-feedback" role="status">
+          {doneCount === 0 ? (
+            "Already in your library."
+          ) : (
+            <>
+              Added to your requests. <Link to="/requests">View requests</Link>
+            </>
+          )}
         </span>
       )}
-      {failed && (
+      {errorMessage && (
         <span className="follow-feedback" role="alert">
-          Could not start. Try again.
+          {errorMessage}
         </span>
       )}
     </div>
