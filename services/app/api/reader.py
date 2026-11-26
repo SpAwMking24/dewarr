@@ -40,6 +40,7 @@ MEDIA_TYPES = {
     "fb2": "application/x-fictionbook+xml",
     "cbz": "application/vnd.comicbook+zip",
 }
+FALLBACK_ROOTS = ("/books", "/audiobooks", "/data/media/books", "/data/media/audiobooks")
 CHUNK_SIZE = 256 * 1024
 
 
@@ -170,28 +171,42 @@ async def _open_local_stream(db, library_id: UUID, file_info: dict):
             )
         )
     )
+    candidates: list[tuple[str, str]] = []
+    roots: list[str] = []
     for route in routes:
         try:
             config = await destination_configuration(db, route)
         except HTTPException:
             continue
         root_path = config.get("root_path")
+        if not root_path:
+            continue
+        roots.append(str(root_path))
         backend_path = route.backend_path
-        if not root_path or not backend_path:
+        if not backend_path:
             continue
         try:
             rel = str(PurePosixPath(file_info["path"]).relative_to(PurePosixPath(backend_path)))
             relative_parts(rel)
         except ValueError:
             continue
+        candidates.append((str(root_path), rel))
+    # The library server may mount the same folders under different names, so also try
+    # the trailing part of the stored path beneath every folder this container can see.
+    parts = [part for part in PurePosixPath(file_info["path"]).parts if part not in {"/", ""}]
+    for root in [*roots, *FALLBACK_ROOTS]:
+        for index in range(len(parts)):
+            candidates.append((root, "/".join(parts[index:])))
+    for root_path, rel in candidates:
         try:
+            relative_parts(rel)
             with directory(Path(root_path)) as root_fd, beneath(root_fd, rel) as file_fd:
                 # Duplicate the open descriptor so we can stream safely after closing root_fd.
                 import os
 
                 dup_fd = os.dup(file_fd)
                 size = os.fstat(dup_fd).st_size
-        except (OSError, ValueError):
+        except (OSError, ValueError, HTTPException):
             continue
 
         def _iter_fd(fd: int):
@@ -247,9 +262,7 @@ async def _open_remote_stream(integration: Integration, asset: LibraryAsset, fil
         response = await client.send(request, stream=True)
     except httpx.HTTPError as err:
         await client.aclose()
-        raise HTTPException(
-            502, "Could not reach the library server to load this ebook"
-        ) from err
+        raise HTTPException(502, "Could not reach the library server to load this ebook") from err
 
     if response.status_code >= 400:
         await response.aclose()
@@ -268,9 +281,9 @@ async def _open_remote_stream(integration: Integration, asset: LibraryAsset, fil
         "Content-Disposition": _content_disposition(file_info["filename"]),
         "Cache-Control": "private, max-age=300",
     }
-    if (
-        content_length := response.headers.get("content-length")
-    ) and not response.headers.get("content-encoding"):
+    if (content_length := response.headers.get("content-length")) and not response.headers.get(
+        "content-encoding"
+    ):
         resp_headers["Content-Length"] = content_length
 
     return StreamingResponse(
