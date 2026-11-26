@@ -134,8 +134,10 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; img-src 'self' https: data:; "
-            "style-src 'self'; script-src 'self'; connect-src 'self'; "
+            "default-src 'self'; img-src 'self' https: data: blob:; "
+            # The built-in ebook reader renders each chapter in a blob: frame with inline styles.
+            "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
+            "frame-src 'self' blob:; font-src 'self' data: blob:; media-src 'self' blob:; "
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
         if request.url.path.startswith("/api"):
