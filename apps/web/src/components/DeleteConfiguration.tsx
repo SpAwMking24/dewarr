@@ -15,7 +15,7 @@ export default function DeleteConfiguration({
 }: {
   name: string;
   description: string;
-  onDelete: () => Promise<unknown>;
+  onDelete: (force?: boolean) => Promise<unknown>;
   onDeleted?: () => void;
   disabled?: boolean;
   label?: string;
@@ -23,13 +23,16 @@ export default function DeleteConfiguration({
   const [open, setOpen] = useState(false);
   const cache = useQueryClient();
   const remove = useMutation({
-    mutationFn: onDelete,
+    mutationFn: (force?: boolean) => onDelete(force),
     onSuccess: async () => {
       setOpen(false);
       onDeleted?.();
       await cache.invalidateQueries();
     },
   });
+  const blockedByDownloads =
+    remove.error instanceof Error &&
+    remove.error.message.startsWith("Unfinished downloads use");
   return (
     <>
       <button
@@ -64,10 +67,20 @@ export default function DeleteConfiguration({
               type="button"
               className="danger"
               disabled={remove.isPending}
-              onClick={() => remove.mutate()}
+              onClick={() => remove.mutate(false)}
             >
               {remove.isPending ? "Deleting…" : "Delete"}
             </button>
+            {blockedByDownloads && (
+              <button
+                type="button"
+                className="danger"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(true)}
+              >
+                Cancel those downloads and delete
+              </button>
+            )}
           </div>
         </BookDialog>
       )}
@@ -95,12 +108,15 @@ export function DeleteSourceConnection({
           ? "Remove the Soulseek search and download connection and its saved credentials. Existing files and download history are kept."
           : "Remove this source connection and its saved credentials. You can connect it again later."
       }
-      onDelete={async () =>
+      onDelete={async (force) =>
         result(
           await api.DELETE("/api/sources/{source}/connection", {
             params: {
               path: { source },
-              query: { expected_generation: generation },
+              query: {
+                expected_generation: generation,
+                ...(force ? { force: true } : {}),
+              } as { expected_generation: number },
             },
           }),
         )

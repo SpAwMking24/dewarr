@@ -366,14 +366,15 @@ export default function Downloaders({
                         ? "Remove the Soulseek search and download connection and its saved credentials. Existing files and download history are kept."
                         : "Remove this download client and its saved credentials and folder mappings. Files and transfers in the download client are kept."
                     }
-                    onDelete={async () =>
+                    onDelete={async (force) =>
                       result(
                         await api.DELETE("/api/downloaders/{connection_id}", {
                           params: {
                             path: { connection_id: connection.id },
                             query: {
                               expected_generation: connection.generation,
-                            },
+                              ...(force ? { force: true } : {}),
+                            } as { expected_generation: number },
                           },
                         }),
                       )

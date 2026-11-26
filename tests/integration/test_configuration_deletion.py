@@ -367,3 +367,39 @@ async def test_unfinished_import_blocks_folder_and_library_deletion_atomically(
     assert (await client.delete(f"/api/integrations/{integration_id}")).status_code == 204
     async with database() as db:
         assert (await db.get(ImportEntry, entry_id)).state == "confirmed"
+
+
+async def test_forced_delete_cancels_unfinished_downloads(
+    client,
+    admin,
+    database,
+    selection_route,
+):
+    response = await prepare(client, selection_route)
+    assert response.status_code == 201, response.text
+    selected = response.json()
+    url = f"/api/downloaders/{selection_route['downloader_id']}"
+    params = {"expected_generation": 1}
+    async with database() as db, db.begin():
+        selection = await db.get(AcquisitionSelection, UUID(selected["id"]))
+        selection.state = "committed"
+        operation = Operation(
+            owner_id=UUID(admin["id"]), kind="download.submit", idempotency_key="forced-download"
+        )
+        db.add(operation)
+        await db.flush()
+        attempt = DownloadAttempt(
+            owner_id=UUID(admin["id"]),
+            selection_id=selection.id,
+            operation_id=operation.id,
+            state="downloading",
+            endpoint_key="b" * 64,
+        )
+        db.add(attempt)
+        await db.flush()
+        attempt_id = attempt.id
+    assert (await client.delete(url, params=params)).status_code == 409
+    forced = await client.delete(url, params={**params, "force": "true"})
+    assert forced.status_code == 204, forced.text
+    async with database() as db:
+        assert (await db.get(DownloadAttempt, attempt_id)).state == "cancelled"

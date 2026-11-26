@@ -13,6 +13,7 @@ from app.api.library_folders import UNFINISHED_IMPORTS
 from app.config import get_settings
 from app.db.models import (
     AcquisitionDefaults,
+    AcquisitionReservation,
     AcquisitionSelection,
     AuditEvent,
     AutomaticImportPolicy,
@@ -51,6 +52,43 @@ async def clear_defaults(db, identifiers):
         if preferences != row.preferences:
             row.preferences = preferences
             row.generation += 1
+
+
+async def abandon_downloads(db, condition):
+    """Cancel unfinished downloads on a connection being removed so they can be re-requested."""
+    attempts = list(
+        dict.fromkeys(
+            await db.scalars(
+                select(DownloadAttempt)
+                .outerjoin(DownloadMembership, DownloadMembership.attempt_id == DownloadAttempt.id)
+                .join(
+                    AcquisitionSelection,
+                    or_(
+                        DownloadAttempt.selection_id == AcquisitionSelection.id,
+                        DownloadMembership.selection_id == AcquisitionSelection.id,
+                    ),
+                )
+                .where(condition, DownloadAttempt.state.not_in(["complete", "cancelled"]))
+                .with_for_update(of=DownloadAttempt)
+            )
+        )
+    )
+    message = "Cancelled because its download connection was removed"
+    for attempt in attempts:
+        attempt.state, attempt.message = "cancelled", message
+        for item in await db.scalars(
+            select(DownloadMembership).where(DownloadMembership.attempt_id == attempt.id)
+        ):
+            item.state, item.message = "cancelled", message
+            reservation = await db.get(AcquisitionReservation, item.reservation_id)
+            if reservation:
+                reservation.state = "planned"
+    await db.execute(
+        update(AcquisitionSelection)
+        .where(condition, AcquisitionSelection.state == "prepared")
+        .values(state="cancelled")
+    )
+    await db.flush()
 
 
 async def check_downloads(db, condition):
@@ -124,8 +162,10 @@ async def retire_destination(db, row):
     row.root_key = f"deleted-{row.id}"
 
 
-async def retire_downloader(db, row):
+async def retire_downloader(db, row, force=False):
     await db.refresh(row, with_for_update=True)
+    if force:
+        await abandon_downloads(db, AcquisitionSelection.downloader_id == row.id)
     await check_downloads(db, AcquisitionSelection.downloader_id == row.id)
     # Completed downloads can still be feeding an import; keep their connection until it finishes.
     destination_ids = select(AcquisitionSelection.destination_id).where(
@@ -198,6 +238,7 @@ async def delete_downloader(
     admin: Admin,
     db: Database,
     expected_generation: int = Query(ge=0),
+    force: bool = Query(False),
 ):
     await locks(db, admin)
     row = await downloaders.transfer_connection(db, connection_id)
@@ -207,7 +248,7 @@ async def delete_downloader(
         source = await db.get(SourceConnection, "slskd", with_for_update=True)
         if source and not source.deleted_at:
             retire_source(source)
-    await retire_downloader(db, row)
+    await retire_downloader(db, row, force)
     db.add(AuditEvent(actor_id=admin.id, action="downloader.deleted", entity_id=row.id))
     await db.commit()
 
@@ -268,6 +309,7 @@ async def delete_source(
     admin: Admin,
     db: Database,
     expected_generation: int = Query(ge=0),
+    force: bool = Query(False),
 ):
     if source == "slskd":
         await locks(db, admin)
@@ -281,7 +323,7 @@ async def delete_source(
     if source == "slskd":
         downloader = await slskd_connection.integration(db)
         if downloader:
-            await retire_downloader(db, downloader)
+            await retire_downloader(db, downloader, force)
     retire_source(row)
     db.add(AuditEvent(actor_id=admin.id, action=f"source.{source}.deleted"))
     await db.commit()
