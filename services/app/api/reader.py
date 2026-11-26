@@ -216,7 +216,11 @@ async def _open_local_stream(db, library_id: UUID, file_info: dict):
 
 
 async def _open_remote_stream(integration: Integration, asset: LibraryAsset, file_info: dict):
-    base_url = (integration.config or {}).get("url") or (integration.config or {}).get("base_url")
+    base_url = (
+        getattr(integration, "base_url", None)
+        or (integration.config or {}).get("url")
+        or (integration.config or {}).get("base_url")
+    )
     if not base_url or not integration.encrypted_secrets:
         return None
     secrets = decrypt_secrets(integration.encrypted_secrets)
