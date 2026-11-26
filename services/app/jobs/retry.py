@@ -29,6 +29,18 @@ class SourceSearchRetryStrategy(RetryStrategy):
         return decision
 
 
+class WaitingSourceRetryStrategy(SourceSearchRetryStrategy):
+    """Waiting for a busy or rate-limited source never spends the failure budget.
+
+    The domain expires the operation by age, so a stuck job cannot retry forever.
+    """
+
+    def get_retry_decision(self, *, exception, job):
+        if isinstance(exception, SourceSearchRetry):
+            return RetryDecision(retry_in={"seconds": exception.retry_after})
+        return super().get_retry_decision(exception=exception, job=job)
+
+
 class ShelfRetry(CatalogRetry):
     def __init__(self, seconds):
         RuntimeError.__init__(self, "Shelf observation is waiting for source access")

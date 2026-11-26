@@ -59,6 +59,7 @@ from app.jobs.retry import SourceSearchRetry
 from app.security import decrypt_secrets
 
 KIND = "acquisition.auto-select"
+WAITING_LIMIT = timedelta(hours=6)
 TERMINAL = {"completed", "held", "failed", "cancelled"}
 
 
@@ -658,6 +659,13 @@ async def run(identifier):
         if not operation or operation.kind != KIND or operation.status in TERMINAL:
             return
         if operation.payload.get("pack_dispatch", {}).get("state") == "waiting":
+            return
+        if datetime.now(UTC) - operation.created_at > WAITING_LIMIT:
+            finish(
+                operation,
+                "failed",
+                "Sources stayed busy or unavailable for 6 hours; start a new selection",
+            )
             return
         if operation.payload.get("token") and datetime.fromisoformat(
             operation.payload["lease_until"]

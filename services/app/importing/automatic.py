@@ -513,7 +513,7 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         if (match.status != "matched" and not linked) or not candidate:
             reason = reason or match.message
             if not reason or reason == match.message:
-                titles = match.evidence.get("titles") or []
+                titles = match.evidence.titles or []
                 requested = [(await canonical_work(db, work_id)).title for work_id in works]
                 # Files that name a different book are the wrong release: try the next one.
                 if (
