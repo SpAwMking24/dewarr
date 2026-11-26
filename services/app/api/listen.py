@@ -10,6 +10,8 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 from uuid import UUID
 
+import anyio
+import anyio.to_thread
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -180,12 +182,45 @@ def _open_candidate(root_path: str, rel: str):
     return dup_fd, os.fstat(dup_fd).st_size, str(Path(root_path) / rel)
 
 
+def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
+    """Last resort: find the file by name beneath a root, preferring the best folder match."""
+    pure = PurePosixPath(path)
+    wanted = [p.lower() for p in pure.parent.parts if p not in {"/", ""}]
+    best: tuple[int, str, str] | None = None
+    seen = 0
+    for root in dict.fromkeys(roots):
+        for here, _dirs, names in os.walk(root, followlinks=False):
+            seen += 1
+            if seen > 20000:
+                break
+            if pure.name not in names:
+                continue
+            rel = os.path.relpath(os.path.join(here, pure.name), root)
+            have = [p.lower() for p in Path(rel).parent.parts]
+            score = 0
+            for a, b in zip(reversed(wanted), reversed(have), strict=False):
+                if a != b:
+                    break
+                score += 1
+            if best is None or score > best[0]:
+                best = (score, root, rel)
+    return (best[1], best[2]) if best else None
+
+
 async def _open_audio(db, library_id: UUID, path: str):
-    for root_path, rel in await _local_candidates(db, library_id, path):
+    candidates = await _local_candidates(db, library_id, path)
+    for root_path, rel in candidates:
         try:
             return _open_candidate(root_path, rel)
         except (OSError, ValueError, HTTPException):
             continue
+    roots = [root for root, _ in candidates]
+    found = await anyio.to_thread.run_sync(_search_by_name, roots, path)
+    if found:
+        try:
+            return _open_candidate(*found)
+        except (OSError, ValueError, HTTPException):
+            return None
     return None
 
 
@@ -343,8 +378,8 @@ async def listen_track(
     if not opened:
         raise HTTPException(
             404,
-            "Audio file is not available in a folder Dewarr can read. "
-            "Mount the audiobooks folder into the container.",
+            "Audio file is not available in a folder Dewarr can read "
+            f"(looked for {info['path']}). Mount the audiobooks folder into the container.",
         )
     fd, size, _ = opened
     try:

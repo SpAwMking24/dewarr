@@ -57,3 +57,15 @@ async def test_listen_streams_ranges_and_saves_position(
 async def test_listen_rejects_ebook_assets(client, admin, database, tmp_path):
     _, asset_id, _ = await _seed_local_ebook(database, tmp_path)
     assert (await client.get(f"/api/listen/assets/{asset_id}")).status_code == 404
+
+
+def test_search_by_name_finds_relocated_file(tmp_path):
+    from services.app.api import listen
+
+    (tmp_path / "Other" / "Book").mkdir(parents=True)
+    (tmp_path / "Author" / "Book").mkdir(parents=True)
+    (tmp_path / "Other" / "Book" / "a.mp3").write_bytes(b"x")
+    (tmp_path / "Author" / "Book" / "a.mp3").write_bytes(b"x")
+    found = listen._search_by_name([str(tmp_path)], "/nas/lib/Author/Book/a.mp3")
+    assert found == (str(tmp_path), "Author/Book/a.mp3")
+    assert listen._search_by_name([str(tmp_path)], "/x/missing.mp3") is None
