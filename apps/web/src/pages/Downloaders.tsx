@@ -744,6 +744,12 @@ function ConnectionForm({
               maxLength={1000}
             />
           </label>
+          {kind === "qbittorrent" && (
+            <p className="muted">
+              Using qBittorrent 5.2 or later? Leave the username blank and paste
+              the API key (starts with qbt_) into the password field.
+            </p>
+          )}
         </>
       )}
       {connection && (

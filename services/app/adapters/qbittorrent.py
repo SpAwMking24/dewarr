@@ -279,6 +279,8 @@ class QbitClient:
         endpoint = configured_url(base_url)
         origin = urlsplit(endpoint)
         self._username, self._password = username, password
+        # qBittorrent 5.2+ API keys (qbt_...) go in the password field with no username.
+        self._api_key = password if not username and password.startswith("qbt_") else None
         self._authenticated = False
         self._capabilities = None
         self.client = httpx.AsyncClient(
@@ -287,6 +289,7 @@ class QbitClient:
                 "Origin": f"{origin.scheme}://{origin.netloc}",
                 "Referer": endpoint + "/",
                 "User-Agent": "BookSearch/0.1",
+                **({"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}),
             },
             trust_env=False,
             follow_redirects=False,
@@ -367,7 +370,7 @@ class QbitClient:
     async def _login(self):
         if self._authenticated:
             return
-        if not self._username and not self._password:
+        if self._api_key or (not self._username and not self._password):
             self._authenticated = True
             return
         status, result = await self._request(

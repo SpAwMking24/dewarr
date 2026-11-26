@@ -660,3 +660,22 @@ def test_transfer_metrics_are_optional_and_unknown_eta_is_not_a_countdown():
     assert observed.download_speed == 0 and observed.eta_seconds is None
     observed = parse_state(row(dlspeed="invalid", eta=-1), properties(), files())
     assert observed.download_speed is None and observed.eta_seconds is None
+
+
+def test_api_key_in_password_field_uses_bearer_without_login():
+    seen = []
+
+    def handler(request):
+        seen.append((request.url.path, request.headers.get("authorization")))
+        return httpx.Response(200, json={"version": "v5.2.0"})
+
+    async def run():
+        async with QbitClient(
+            "http://qbit.test", "", "qbt_" + "a" * 28, transport=httpx.MockTransport(handler)
+        ) as client:
+            await client._login()
+            await client._request("GET", "app/version")
+
+    asyncio.run(run())
+    assert seen and all(path != "/api/v2/auth/login" for path, _ in seen)
+    assert all(auth == "Bearer qbt_" + "a" * 28 for _, auth in seen)
