@@ -471,10 +471,7 @@ def indexer_title_authors(release, work):
             # Strip recognised release labels before comparing the first
             # credit. Prowlarr copies of AudiobookBay titles can append
             # format and bitrate labels after the author name.
-            credits = {
-                normalized(prefix)
-                for prefix, _ in indexer_suffixes(tail.split(",")[0])
-            }
+            credits = {normalized(prefix) for prefix, _ in indexer_suffixes(tail.split(",")[0])}
             bare = title_outside_series_note(head, work) or title_outside_series_prefix(head, work)
             full_title = normalized(parse_title_labels(work["title"]).title)
             if credits & authors.keys() and (
@@ -623,6 +620,11 @@ def assess_release(release, work, preferences, medium="all"):
                 else "Preferred narrator not established"
             )
     formats = sorted({f.lower() for f in release.formats})
+    other = {"audio": set(preferences.ebook_formats), "ebook": set(preferences.audio_formats)}.get(
+        medium
+    )
+    if other and release.medium is None and formats and set(formats) <= other:
+        blocked.append("The release is for a different medium")
     forbidden = set(formats) & set(preferences.blocked_formats)
     if forbidden:
         blocked.append("Blocked format: " + ", ".join(sorted(forbidden)))

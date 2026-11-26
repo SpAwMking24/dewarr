@@ -790,3 +790,25 @@ def test_year_led_descriptive_suffix_does_not_hide_the_author(title, expected):
     candidate = SimpleNamespace(source="prowlarr", title=title, raw_title=title, authors=[])
     work = {"title": "11/22/63", "authors": ["Stephen King"], "series": []}
     assert indexer_title_authors(candidate, work) == expected
+
+
+def test_ebook_only_formats_are_blocked_for_an_audiobook_search():
+    from app.adapters.prowlarr import ProwlarrRelease
+
+    candidate = ProwlarrRelease(
+        source_id="fixture",
+        title="Harbor Writer.pdf",
+        raw_title="Harbor Writer.pdf",
+        authors=["Writer"],
+        medium=None,
+        formats=["pdf"],
+        protocol="torrent",
+        indexer_name="Fixture",
+        categories=[],
+        observed_at=datetime.now(UTC),
+        acquisition_supported=True,
+    )
+    audio = assess_release(candidate, WORK, ReleasePreferences(), "audio")
+    assert "The release is for a different medium" in audio.blocked
+    ebook = assess_release(candidate, WORK, ReleasePreferences(), "ebook")
+    assert "The release is for a different medium" not in ebook.blocked
