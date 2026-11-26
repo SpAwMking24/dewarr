@@ -82,3 +82,23 @@ def test_search_tolerates_renamed_single_file(tmp_path):
         "/data/media/audiobooks/Elly Griffiths/A Dying Fall (2012)/DYING FALL .mp3",
     )
     assert found == (str(tmp_path), "Elly Griffiths/A Dying Fall (2012)/A Dying Fall.mp3")
+
+
+def test_search_matches_renamed_folder_and_file(tmp_path):
+    from services.app.api import listen
+
+    folder = tmp_path / "Elly Griffiths" / "2012 - A Dying Fall"
+    folder.mkdir(parents=True)
+    (folder / "A Dying Fall.m4b").write_bytes(b"x")
+    found = listen._search_by_name(
+        [str(tmp_path)],
+        "/data/media/audiobooks/Elly Griffiths/A Dying Fall (2012)/DYING FALL .mp3",
+    )
+    assert found == (str(tmp_path), "Elly Griffiths/2012 - A Dying Fall/A Dying Fall.m4b")
+    (folder / "A Dying Fall.m4b").unlink()
+    (folder / "A Dying Fall.mp3").write_bytes(b"x")
+    found = listen._search_by_name(
+        [str(tmp_path)],
+        "/data/media/audiobooks/Elly Griffiths/A Dying Fall (2012)/DYING FALL .mp3",
+    )
+    assert found == (str(tmp_path), "Elly Griffiths/2012 - A Dying Fall/A Dying Fall.mp3")

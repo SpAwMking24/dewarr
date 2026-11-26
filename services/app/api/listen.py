@@ -186,12 +186,20 @@ def _norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
+def _words(value: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", value.lower()) if w not in {"the", "a", "an"}}
+
+
+def _words_similar(left: str, right: str) -> bool:
+    a, b = _words(left), _words(right)
+    return bool(a and b) and len(a & b) / len(a | b) >= 0.6
+
+
 def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
     """Last resort: find the file beneath a root, tolerating renames and spacing changes."""
     pure = PurePosixPath(path)
     wanted = [_norm(p) for p in pure.parent.parts if p not in {"/", ""}]
     stem = _norm(pure.stem)
-    suffix = pure.suffix.lower()
     best: tuple[int, int, str, str] | None = None
     seen = 0
     for root in dict.fromkeys(roots):
@@ -206,6 +214,8 @@ def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
                 if a != b:
                     break
                 folder += 1
+            if folder == 0 and have and _words_similar(pure.parent.name, Path(rel_dir).name):
+                folder = 2
             audio = [
                 n for n in names if PurePosixPath(n).suffix.lower().lstrip(".") in AUDIO_FORMATS
             ]
@@ -213,11 +223,7 @@ def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
                 name_score = 2 if name == pure.name else 0
                 if _norm(PurePosixPath(name).stem) == stem:
                     name_score = max(name_score, 1)
-                if PurePosixPath(name).suffix.lower() == suffix and (
-                    name_score or (folder >= 2 and len(audio) == 1)
-                ):
-                    name_score = name_score or 0
-                elif not name_score:
+                if not name_score and not (folder >= 2 and len(audio) == 1):
                     continue
                 key = (folder, name_score)
                 if best is None or key > best[:2]:
