@@ -480,13 +480,14 @@ function Results({
           </p>
         </section>
       )}
-      {data.sources
-        .filter((source) => source.state === "failed")
-        .map((source) => (
-          <p className="notice error" key={source.key}>
-            {source.name}: {source.message}
-          </p>
-        ))}
+      {!data.items.length &&
+        data.sources
+          .filter((source) => source.state === "failed")
+          .map((source) => (
+            <p className="notice error" key={source.key}>
+              {source.name}: {source.message}
+            </p>
+          ))}
       {!data.sources.length && (
         <p className="notice">
           Connect a download source in Settings to find releases.

@@ -221,7 +221,8 @@ async def prepare(db, user, body, key, *, automatic_evidence=None, recovery_sele
         )
     )
     if not target or target.state != "wanted" or not target.reservation_id:
-        raise HTTPException(409, "This target is no longer wanted; refresh its library status")
+        reason = target.message if target else "This request has no open target"
+        raise HTTPException(409, f"Not downloading: {reason}")
     reservation = await db.get(AcquisitionReservation, target.reservation_id)
     if reservation.state == "selected":
         existing = await db.scalar(
