@@ -80,8 +80,9 @@ export default function OperationHistory({ actions }: { actions?: ReactNode }) {
       if (!response.ok) throw new Error(`Export failed (${response.status})`);
       const blob = await response.blob();
       const disposition = response.headers.get("content-disposition") || "";
-      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1]
-        || `dewarr-logs.${format}`;
+      const filename =
+        disposition.match(/filename="?([^";]+)"?/i)?.[1] ||
+        `dewarr-logs.${format}`;
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -171,16 +172,28 @@ export default function OperationHistory({ actions }: { actions?: ReactNode }) {
           <p className="muted">Jobs and library checks, newest first.</p>
         </div>
         <div className="logs-export-actions">
-          <button type="button" onClick={() => void exportLogs("csv")} disabled={Boolean(exporting)}>
+          <button
+            type="button"
+            onClick={() => void exportLogs("csv")}
+            disabled={Boolean(exporting)}
+          >
             {exporting === "csv" ? "Exporting…" : "Export CSV"}
           </button>
-          <button type="button" onClick={() => void exportLogs("json")} disabled={Boolean(exporting)}>
+          <button
+            type="button"
+            onClick={() => void exportLogs("json")}
+            disabled={Boolean(exporting)}
+          >
             {exporting === "json" ? "Exporting…" : "Export JSON"}
           </button>
           {actions}
         </div>
       </div>
-      {exportError && <p className="muted" role="alert">{exportError}</p>}
+      {exportError && (
+        <p className="muted" role="alert">
+          {exportError}
+        </p>
+      )}
       <form
         className="logs-toolbar"
         aria-label="Search background activity"

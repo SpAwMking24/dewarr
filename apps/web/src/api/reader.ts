@@ -143,3 +143,82 @@ export async function fetchContinueReading(
   });
   return readJson<ContinueReadingItem[]>(response);
 }
+
+export interface ListenChapter {
+  title: string;
+  start: number;
+  end: number | null;
+}
+
+export interface ListenTrack {
+  index: number;
+  filename: string;
+  format: string;
+  size: number | null;
+  duration: number | null;
+  chapters: ListenChapter[];
+}
+
+export interface ListenBook {
+  asset_id: string;
+  work_id: string | null;
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  tracks: ListenTrack[];
+  progress: ReadingProgress | null;
+}
+
+export async function fetchWorkAudio(
+  workId: string,
+  signal?: AbortSignal,
+): Promise<ListenBook | null> {
+  const response = await fetch(`/api/listen/works/${workId}/audio`, {
+    credentials: "same-origin",
+    signal,
+  });
+  return readJson<ListenBook | null>(response);
+}
+
+export async function fetchListenBook(
+  assetId: string,
+  signal?: AbortSignal,
+): Promise<ListenBook> {
+  const response = await fetch(`/api/listen/assets/${assetId}`, {
+    credentials: "same-origin",
+    signal,
+  });
+  return readJson<ListenBook>(response);
+}
+
+export async function saveListenProgress(
+  assetId: string,
+  progress: {
+    track: number;
+    seconds: number;
+    fraction: number;
+    chapter: string | null;
+  },
+  keepalive = false,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const csrf = getCsrf();
+  if (csrf) headers["X-CSRF-Token"] = csrf;
+  await fetch(`/api/listen/assets/${assetId}/progress`, {
+    method: "PUT",
+    credentials: "same-origin",
+    headers,
+    body: JSON.stringify(progress),
+    keepalive,
+  });
+}
+
+/** Parse the stored `track:<index>@<seconds>` position. */
+export function parseListenPosition(
+  value: string | null | undefined,
+): { track: number; seconds: number } | null {
+  const match = /^track:(\d+)@([\d.]+)$/.exec(value || "");
+  return match ? { track: Number(match[1]), seconds: Number(match[2]) } : null;
+}

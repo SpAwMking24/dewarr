@@ -10,6 +10,7 @@ import "../reader.css";
 import { canStartDownload } from "../permissions";
 import { Link } from "react-router-dom";
 import { useReadableEbook } from "../hooks/useReadableEbook";
+import { useListenableAudio } from "../hooks/useListenableAudio";
 
 type Props = {
   providerBook?: { provider: string; external_id: string };
@@ -35,6 +36,10 @@ export default function BookCover({
   const readable = useReadableEbook(
     detail ? work?.id : undefined,
     work?.availability.ebook,
+  );
+  const listenable = useListenableAudio(
+    detail ? work?.id : undefined,
+    work?.availability.audio,
   );
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
@@ -204,7 +209,10 @@ export default function BookCover({
           const href =
             detail && kind === "ebook" && readable.data
               ? `/read/${readable.data.asset_id}`
-              : null;
+              : detail && kind === "audio" && listenable.data
+                ? `/listen/${listenable.data.asset_id}`
+                : null;
+          const verb = kind === "audio" ? "Listen to" : "Read";
           const className = `cover-format ${owned ? "is-owned" : partial ? "is-partial" : "is-missing"} ${owned && versions > 1 ? "has-versions" : ""} ${href ? "is-openable" : ""}`;
           const title =
             versions > 1 ? `${label} · ${versions} versions` : label;
@@ -226,8 +234,8 @@ export default function BookCover({
               key={kind}
               to={href}
               className={className}
-              aria-label={`Read ${work?.title ?? title} in Dewarr`}
-              title="Read in Dewarr"
+              aria-label={`${verb} ${work?.title ?? title} in Dewarr`}
+              title={`${verb} in Dewarr`}
             >
               {content}
             </Link>

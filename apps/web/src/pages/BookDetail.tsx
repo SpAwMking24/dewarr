@@ -8,7 +8,7 @@ import LibraryFormatBadges from "../components/LibraryFormatBadges";
 import PartSets from "../components/CombineParts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Check, Settings2 } from "lucide-react";
+import { BookOpen, Check, Headphones, Settings2 } from "lucide-react";
 import {
   Link,
   Navigate,
@@ -18,6 +18,7 @@ import {
 } from "react-router-dom";
 import { api, result } from "../api/client";
 import { fetchWorkEbook } from "../api/reader";
+import { useListenableAudio } from "../hooks/useListenableAudio";
 import {
   BookHero,
   BookOverview,
@@ -179,6 +180,7 @@ function BookDetailContent({
     staleTime: 60_000,
     retry: false,
   });
+  const listenableAudio = useListenableAudio(id, book.data?.availability.audio);
   if (book.isPending) return <ContentSkeleton kind="book" />;
   if (book.error || !book.data) return <Notice error={book.error} />;
   const work = book.data;
@@ -303,6 +305,18 @@ function BookDetailContent({
               readableEbook.data.progress.fraction > 0.01
                 ? `Continue reading · ${Math.round(readableEbook.data.progress.fraction * 100)}%`
                 : "Read ebook"}
+            </Link>
+          )}
+          {listenableAudio.data && (
+            <Link
+              className="button-link primary"
+              to={`/listen/${listenableAudio.data.asset_id}`}
+            >
+              <Headphones size={16} aria-hidden="true" />
+              {listenableAudio.data.progress &&
+              listenableAudio.data.progress.fraction > 0.01
+                ? `Continue listening · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
+                : "Listen"}
             </Link>
           )}
           {work.availability.owned && (

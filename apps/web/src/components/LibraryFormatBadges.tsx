@@ -2,9 +2,11 @@ import { BookOpen, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Work } from "../api/client";
 import { useReadableEbook } from "../hooks/useReadableEbook";
+import { useListenableAudio } from "../hooks/useListenableAudio";
 
 export default function LibraryFormatBadges({ work }: { work: Work }) {
   const readable = useReadableEbook(work.id, work.availability.ebook);
+  const listenable = useListenableAudio(work.id, work.availability.audio);
   const readHref = readable.data ? `/read/${readable.data.asset_id}` : null;
   return (
     <>
@@ -18,7 +20,12 @@ export default function LibraryFormatBadges({ work }: { work: Work }) {
           work.availability[medium === "audio" ? "audio_stale" : "ebook_stale"];
         const Icon = medium === "audio" ? Headphones : BookOpen;
         const name = medium === "audio" ? "Audiobook" : "Ebook";
-        const openHref = medium === "ebook" ? readHref : null;
+        const openHref =
+          medium === "ebook"
+            ? readHref
+            : listenable.data
+              ? `/listen/${listenable.data.asset_id}`
+              : null;
         const label = (
           <>
             <Icon size={15} aria-hidden="true" /> {name}
@@ -34,7 +41,7 @@ export default function LibraryFormatBadges({ work }: { work: Work }) {
               <Link
                 className="format-open"
                 to={openHref}
-                aria-label={`Read ${work.title} in Dewarr`}
+                aria-label={`${medium === "audio" ? "Listen to" : "Read"} ${work.title} in Dewarr`}
               >
                 {label}
               </Link>
