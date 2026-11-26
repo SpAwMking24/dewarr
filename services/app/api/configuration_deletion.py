@@ -18,6 +18,7 @@ from app.db.models import (
     AuditEvent,
     AutomaticImportPolicy,
     DownloadAttempt,
+    DownloadIdentityClaim,
     DownloadMembership,
     ImportDestination,
     ImportEntry,
@@ -27,7 +28,7 @@ from app.db.models import (
     PartCombine,
     SourceConnection,
 )
-from app.domain import downloaders, slskd_connection
+from app.domain import download_memberships, downloaders, slskd_connection
 from app.domain.operations import transaction_lock
 from app.domain.release_profiles import DEFAULTS_LOCK
 from app.domain.source_network import check_actor
@@ -76,13 +77,26 @@ async def abandon_downloads(db, condition):
     message = "Cancelled because its download connection was removed"
     for attempt in attempts:
         attempt.state, attempt.message = "cancelled", message
-        for item in await db.scalars(
-            select(DownloadMembership).where(DownloadMembership.attempt_id == attempt.id)
-        ):
+        selections = {attempt.selection_id: None}
+        for item in await download_memberships.for_attempt(db, attempt.id):
+            selections[item.id] = item
+        for identifier, item in selections.items():
+            item = item or await db.get(AcquisitionSelection, identifier)
+            if item is None:
+                continue
             item.state, item.message = "cancelled", message
-            reservation = await db.get(AcquisitionReservation, item.reservation_id)
+            reservation = (
+                await db.get(AcquisitionReservation, item.reservation_id)
+                if item.reservation_id
+                else None
+            )
             if reservation:
                 reservation.state = "planned"
+        await db.execute(
+            update(DownloadIdentityClaim)
+            .where(DownloadIdentityClaim.attempt_id == attempt.id)
+            .values(active=False)
+        )
     await db.execute(
         update(AcquisitionSelection)
         .where(condition, AcquisitionSelection.state == "prepared")

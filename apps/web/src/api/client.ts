@@ -54,7 +54,9 @@ export function result<T>(value: {
     const detail =
       typeof error?.detail === "string"
         ? error.detail
-        : "The request failed. Check your entries and try again.";
+        : value.response.status >= 500
+          ? `The server hit an error (${value.response.status}). Check the Dewarr container logs.`
+          : "The request failed. Check your entries and try again.";
     throw new ApiError(detail, value.response.status);
   }
   return value.data as T;

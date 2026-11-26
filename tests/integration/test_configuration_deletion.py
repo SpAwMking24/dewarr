@@ -398,8 +398,12 @@ async def test_forced_delete_cancels_unfinished_downloads(
         db.add(attempt)
         await db.flush()
         attempt_id = attempt.id
+        from app.db.models import DownloadMembership
+
+        db.add(DownloadMembership(selection_id=selection.id, attempt_id=attempt.id))
     assert (await client.delete(url, params=params)).status_code == 409
     forced = await client.delete(url, params={**params, "force": "true"})
     assert forced.status_code == 204, forced.text
     async with database() as db:
         assert (await db.get(DownloadAttempt, attempt_id)).state == "cancelled"
+        assert (await db.get(AcquisitionSelection, UUID(selected["id"]))).state == "cancelled"
