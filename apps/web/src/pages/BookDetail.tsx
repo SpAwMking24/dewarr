@@ -5,7 +5,6 @@ import BookSourceIcon from "../components/BookSourceIcon";
 import QuickAdd from "../components/QuickAdd";
 import { EmbeddedAudiobook } from "./AudiobookPlayer";
 import BookGrouping from "../components/BookGrouping";
-import LibraryFormatBadges from "../components/LibraryFormatBadges";
 import PartSets from "../components/CombineParts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -286,7 +285,6 @@ function BookDetailContent({
               {watching ? "Waiting for release" : "In your catalog"}
             </span>
           )}
-          <LibraryFormatBadges work={work} />
           {work.availability.stale && (
             <span className="muted">Last known availability</span>
           )}
@@ -294,7 +292,7 @@ function BookDetailContent({
         <div className="reader-actions">
           {readableEbook.data && (
             <Link
-              className="button-link primary"
+              className="button-link format-action"
               to={`/read/${readableEbook.data.asset_id}`}
             >
               <BookOpen size={16} aria-hidden="true" />
@@ -307,7 +305,7 @@ function BookDetailContent({
           {listenableAudio.data && (
             <button
               type="button"
-              className="button-link primary"
+              className="button-link format-action"
               aria-pressed={listening}
               onClick={() => setListening((open) => !open)}
             >

@@ -4394,3 +4394,17 @@ a:focus-visible .book-source-icon {
   background: var(--surface);
   border-color: currentColor;
 }
+
+.button-link.format-action,
+button.format-action {
+  background: #163c33;
+  border: 1px solid #356859;
+  color: #b1f4d9;
+}
+.button-link.format-action:hover,
+button.format-action:hover,
+button.format-action[aria-pressed="true"] {
+  background: #1d4b40;
+  border-color: #4b8a76;
+  color: #d4fbec;
+}
