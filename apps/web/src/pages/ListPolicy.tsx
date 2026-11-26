@@ -26,9 +26,12 @@ export default function ListPolicy({
   listId,
   follow = false,
   downloadAll = false,
+  medium: presetMedium,
   onActivated,
 }: {
   listId: string;
+  /** Skip the chooser: Download all for this medium. */
+  medium?: "ebook" | "audio" | "both";
   /** Called once an activation (such as Download all) has been saved. */
   onActivated?: () => void;
   follow?: boolean;
@@ -125,6 +128,7 @@ export default function ListPolicy({
             policy={policy.data}
             saved={saved}
             downloadAll={downloadAll && !consumed}
+            presetMedium={presetMedium}
             onActivated={onActivated}
           />
         </>
@@ -185,8 +189,10 @@ function PolicyEditor({
   policy,
   saved,
   downloadAll = false,
+  presetMedium,
   onActivated,
 }: {
+  presetMedium?: "ebook" | "audio" | "both";
   listId: string;
   follow: boolean;
   policy: Policy | null;
@@ -200,7 +206,8 @@ function PolicyEditor({
       : (policy?.configuration.mode as Input["mode"]) || "browse",
   );
   const [medium, setMedium] = useState<Input["specification"]["mode"]>(
-    policy?.configuration.scope_options?.mode ||
+    presetMedium ||
+      policy?.configuration.scope_options?.mode ||
       policy?.configuration.preference_overrides?.desired_media ||
       (policy?.configuration.scope_options == null
         ? policy?.configuration.specification.mode
@@ -247,7 +254,7 @@ function PolicyEditor({
       ).map(([m, r]) => [m, r.destination_id]),
     ),
   );
-  const [chosen, setChosen] = useState(!downloadAll);
+  const [chosen, setChosen] = useState(!downloadAll || !!presetMedium);
   const [selected, setSelected] = useState<string[]>([]);
   const [selectAllMissing, setSelectAllMissing] = useState(false);
   const [selectionValid, setSelectionValid] = useState(false);

@@ -4,9 +4,10 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
-import { Check, Download, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import ListPolicy from "../pages/ListPolicy";
+import { Check, Plus } from "lucide-react";
 import { api, ApiError, result } from "../api/client";
 import type { components } from "../api/schema";
 
@@ -41,9 +42,6 @@ export default function FollowCatalog({
   downloadAll?: boolean;
 }) {
   const followedLink = useRef<HTMLAnchorElement>(null);
-  const navigate = useNavigate();
-  const downloadAllHref = (listId: string) =>
-    "/following?list=" + listId + "&download=all";
   const cache = useQueryClient();
   const query = useFollowing();
   const mutationKey = ["follow-catalog", kind, externalId];
@@ -53,7 +51,7 @@ export default function FollowCatalog({
   );
   const follow = useMutation({
     mutationKey,
-    mutationFn: async (_downloadAll?: boolean) =>
+    mutationFn: async (_unused?: boolean) =>
       result(
         await api.POST("/api/following", {
           body: {
@@ -64,8 +62,7 @@ export default function FollowCatalog({
           },
         }),
       ),
-    onSuccess: (value, downloadAll?: boolean) => {
-      if (downloadAll) navigate(downloadAllHref(value.list_id));
+    onSuccess: (value) => {
       cache.setQueryData<CatalogFollow[]>(["following"], (old) => [
         ...(old || []).filter((f) => f.list_id !== value.list_id),
         value,
@@ -91,15 +88,6 @@ export default function FollowCatalog({
           {!existing.subscription.enabled ? " · Updates paused" : ""}
         </Link>
       ) : null}
-      {downloadAll && existing && kind === "author" ? (
-        <Link
-          className="reader-action-link"
-          to={downloadAllHref(existing.list_id)}
-          aria-label={"Download all books by " + name}
-        >
-          <Download size={14} aria-hidden="true" /> Download all
-        </Link>
-      ) : null}
       {existing ? null : (
         <button
           type="button"
@@ -115,14 +103,13 @@ export default function FollowCatalog({
               : "Follow future additions"}
         </button>
       )}
-      {downloadAll && !existing && kind === "author" ? (
-        <button
-          type="button"
+      {downloadAll && kind === "author" ? (
+        <DownloadAllChoice
+          name={name}
           disabled={query.isPending || !!query.error || saving}
-          onClick={() => follow.mutate(true)}
-        >
-          <Download size={14} aria-hidden="true" /> Follow and download all
-        </button>
+          follow={existing}
+          create={() => follow.mutateAsync(false)}
+        />
       ) : null}
       {follow.isSuccess && existing && (
         <span className="follow-feedback" role="status">
@@ -142,6 +129,89 @@ export default function FollowCatalog({
           )}
         </span>
       )}
+    </span>
+  );
+}
+
+function DownloadAllChoice({
+  name,
+  follow,
+  disabled,
+  create,
+}: {
+  name: string;
+  follow?: CatalogFollow;
+  disabled: boolean;
+  create: () => Promise<CatalogFollow>;
+}) {
+  const [medium, setMedium] = useState<"ebook" | "audio" | "both" | null>(null);
+  const [listId, setListId] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [done, setDone] = useState(false);
+  const live = useQuery({
+    queryKey: ["following"],
+    queryFn: async () => result(await api.GET("/api/following")),
+    enabled: !!listId,
+    refetchInterval: 1500,
+  });
+  const current = live.data?.find((f) => f.list_id === (listId || ""));
+  const ready =
+    !!current &&
+    current.subscription.enabled &&
+    current.subscription.completeness === "verified-observation";
+  const choices = [
+    ["ebook", "Ebooks"],
+    ["audio", "Audiobooks"],
+    ["both", "Both"],
+  ] as const;
+  if (done)
+    return (
+      <span className="follow-feedback" role="status">
+        Added to your requests. <Link to="/requests">View requests</Link>
+      </span>
+    );
+  return (
+    <span
+      className="download-all-options"
+      role="group"
+      aria-label={"Download all books by " + name}
+    >
+      {medium === null ? (
+        <>
+          <span>Download all:</span>
+          {choices.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              disabled={disabled}
+              onClick={async () => {
+                setFailed(false);
+                setMedium(value);
+                try {
+                  setListId(follow?.list_id || (await create()).list_id);
+                } catch {
+                  setMedium(null);
+                  setFailed(true);
+                }
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </>
+      ) : ready && listId ? (
+        <ListPolicy
+          key={listId + medium}
+          listId={listId}
+          follow
+          downloadAll
+          medium={medium}
+          onActivated={() => setDone(true)}
+        />
+      ) : (
+        <span role="status">Checking the author's books…</span>
+      )}
+      {failed && <span role="alert">Could not start. Try again.</span>}
     </span>
   );
 }

@@ -11,6 +11,7 @@ import { canStartDownload } from "../permissions";
 import { Link } from "react-router-dom";
 import { useReadableEbook } from "../hooks/useReadableEbook";
 import { useListenableAudio } from "../hooks/useListenableAudio";
+import { useDownloadProgress } from "../hooks/useDownloadProgress";
 
 type Props = {
   providerBook?: { provider: string; external_id: string };
@@ -41,6 +42,7 @@ export default function BookCover({
     detail ? work?.id : undefined,
     work?.availability.audio,
   );
+  const progress = useDownloadProgress(work?.id);
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
     enabled: false,
@@ -188,6 +190,20 @@ export default function BookCover({
           <Check size={15} aria-hidden="true" />
           <span className="sr-only">In library</span>
         </span>
+      )}
+      {progress && (progress.ebook != null || progress.audio != null) && (
+        <div className="cover-water" aria-hidden="true">
+          {(["ebook", "audio"] as const).map((kind) =>
+            progress[kind] == null ? null : (
+              <span
+                key={kind}
+                className={`cover-water-level water-${kind}`}
+                title={`${kind === "audio" ? "Audiobook" : "Ebook"} ${Math.round(progress[kind]! * 100)}%`}
+                style={{ height: `${Math.max(6, progress[kind]! * 100)}%` }}
+              />
+            ),
+          )}
+        </div>
       )}
       <div className="cover-formats">
         {(["ebook", "audio"] as const).map((kind) => {

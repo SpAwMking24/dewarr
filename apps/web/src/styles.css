@@ -4408,3 +4408,62 @@ button.format-action[aria-pressed="true"] {
   border-color: #4b8a76;
   color: #d4fbec;
 }
+
+/* Download progress: water rising over a cover. Blue is the ebook, amber the audiobook. */
+.cover-water {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 1;
+}
+.cover-water-level {
+  position: relative;
+  flex: 1 1 0;
+  transition: height 1.2s ease;
+  background: linear-gradient(to top, var(--water-deep), var(--water-shallow));
+}
+.cover-water-level::before,
+.cover-water-level::after {
+  content: "";
+  position: absolute;
+  left: -50%;
+  top: -9px;
+  width: 200%;
+  height: 12px;
+  background: var(--water-shallow);
+  border-radius: 45%;
+  animation: cover-wave 4.5s linear infinite;
+}
+.cover-water-level::after {
+  top: -6px;
+  opacity: 0.6;
+  animation-duration: 7s;
+  animation-direction: reverse;
+}
+.water-ebook {
+  --water-deep: rgba(14, 116, 190, 0.62);
+  --water-shallow: rgba(56, 189, 248, 0.5);
+}
+.water-audio {
+  --water-deep: rgba(194, 100, 12, 0.62);
+  --water-shallow: rgba(251, 176, 64, 0.5);
+}
+@keyframes cover-wave {
+  from {
+    transform: translateX(0) rotate(0deg);
+  }
+  50% {
+    transform: translateX(12%) rotate(180deg);
+  }
+  to {
+    transform: translateX(0) rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cover-water-level::before,
+  .cover-water-level::after {
+    animation: none;
+  }
+}

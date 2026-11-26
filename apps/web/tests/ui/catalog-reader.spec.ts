@@ -199,6 +199,22 @@ for (const unlinked of [false, true]) {
       else if (url.pathname === "/api/lists/page")
         data = { items: [{ id: "list", name: "Weekend reads" }], total: 1 };
       else if (url.pathname === "/api/acquisition/profiles") data = [];
+      else if (
+        url.pathname === "/api/requests" &&
+        url.searchParams.get("status") === "downloading"
+      )
+        data = {
+          items: [
+            {
+              work_id: id,
+              targets: [
+                { slot: "ebook", progress: 0.4 },
+                { slot: "audio", progress: 0.75 },
+              ],
+            },
+          ],
+          total: 1,
+        };
       if (
         new URL(route.request().url()).pathname.includes(
           "/acquisition/preferences/",
@@ -209,6 +225,11 @@ for (const unlinked of [false, true]) {
     });
     await page.goto(`/books/${id}`);
     await expect(page.locator(".reader-hero h1")).toHaveAccessibleName(title);
+    await expect(page.locator(".cover-water-level.water-ebook")).toHaveCSS(
+      "height",
+      /\d/,
+    );
+    await expect(page.locator(".cover-water-level.water-audio")).toHaveCount(1);
     await expect(page.locator(".reader-hero h1")).toHaveText(
       "The Quiet Harbor",
     );
