@@ -310,11 +310,16 @@ function Player({ book }: { book: ListenBook }) {
             if (track + 1 < book.tracks.length) goTo(track + 1, 0, true);
             else saveRef.current();
           }}
-          onError={() =>
-            setError(
-              "This audio file could not be played. Check that the audiobooks folder is mounted in the Dewarr container.",
-            )
-          }
+          onError={() => {
+            const fallback = `This audio file could not be played (${current?.format ?? "unknown"} format).`;
+            void fetch(src, { headers: { Range: "bytes=0-0" } })
+              .then(async (res) => {
+                if (res.ok) return setError(fallback);
+                const body = await res.json().catch(() => null);
+                setError(body?.detail ?? `Server returned ${res.status}.`);
+              })
+              .catch(() => setError(fallback));
+          }}
         />
         <input
           className="listen-seek"
