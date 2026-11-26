@@ -30,8 +30,11 @@ export default function QuickAdd({
   workId,
   resolveWork,
   coverFormats,
+  owned,
   actionLabel = "Quick add",
 }: {
+  /** Formats already in the library are not offered again. */
+  owned?: { ebook: boolean; audio: boolean };
   coverFormats?: { ebook: boolean; audio: boolean };
   workId?: string;
   resolveWork?: () => Promise<string>;
@@ -275,9 +278,13 @@ export default function QuickAdd({
       </div>
     );
   const formats: [Mode, string, boolean][] = [
-    ["ebook", "Add ebook", ebookDownload],
-    ["audio", "Add audiobook", audioDownload],
-    ["both", "Add both", ebookDownload && audioDownload],
+    ["ebook", "Add ebook", ebookDownload && !owned?.ebook],
+    ["audio", "Add audiobook", audioDownload && !owned?.audio],
+    [
+      "both",
+      "Add both",
+      ebookDownload && audioDownload && !owned?.ebook && !owned?.audio,
+    ],
   ];
   return (
     <div className="quick-add" ref={bind}>

@@ -159,3 +159,67 @@
   color: #9aa6b8;
   flex: none;
 }
+
+.listen-embedded {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  grid-template-areas: "head head" "main chapters";
+  gap: 0 1.5rem;
+  border: 1px solid #232a37;
+  border-radius: 0.75rem;
+  margin: 1rem 0 2rem;
+  padding: 1rem;
+}
+.listen-embedded-head {
+  grid-area: head;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #232a37;
+}
+.listen-embedded .listen-main {
+  grid-area: main;
+  padding: 1rem 0;
+  width: 100%;
+}
+.listen-chapters-inline {
+  grid-area: chapters;
+  max-height: 28rem;
+  overflow-y: auto;
+  padding: 1rem 0 0 0;
+}
+.listen-chapters-inline ol {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+.listen-chapters-inline li button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  padding: 0.5rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+.listen-chapters-inline li button:hover,
+.listen-chapters-inline li button[aria-current="true"] {
+  background: #1f2838;
+  color: #7db4ff;
+}
+.listen-chapters-inline small {
+  color: #9aa6b8;
+  flex: none;
+}
+@media (max-width: 760px) {
+  .listen-embedded {
+    grid-template-columns: 1fr;
+    grid-template-areas: "head" "main" "chapters";
+  }
+}

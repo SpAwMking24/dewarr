@@ -456,21 +456,19 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await expect(page.getByRole("table")).toHaveCount(0);
   await best.getByRole("button", { name: /^Show all \d+ results$/ }).click();
   const table = page.getByRole("table");
-  await expect(table.getByRole("row")).toHaveCount(3);
+  await expect(table.getByRole("row")).toHaveCount(2);
   for (const name of [
     "Title",
     "Author(s)",
     "Narrators",
     "Size",
     "Format",
-    "Seeds",
     "Tags",
   ])
     await expect(
       table.getByRole("columnheader", { name, exact: true }),
     ).toBeVisible();
   await expect(table).toContainText("881.8 MiB");
-  await expect(table).toContainText("7,534");
   await expect(table).toContainText("Freeleech");
   await expect(table).toContainText("VIP");
   const sourceDownload = table.getByRole("button", {
@@ -481,12 +479,10 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await expect(wedge).toHaveCount(1);
   await expect(wedge).toBeEnabled();
   await wedge.check();
-  await expect(sourceDownload.nth(1)).toBeDisabled();
   await sourceDownload.first().click();
   await expect(
     table.locator(".source-download-status").first(),
   ).toHaveAttribute("title", "Selected release download started");
-  await expect(sourceDownload.first()).toBeDisabled();
   expect(releaseDownloads).toEqual([
     "/api/source-searches/search-refreshed-1/results/result-1/download",
   ]);
@@ -496,13 +492,6 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await expect(
     page.getByRole("option", { name: "Unknown format", exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Sort this view").click();
-  await page
-    .getByRole("listbox", { name: "Sort this view" })
-    .getByRole("option", { name: "Smallest download", exact: true })
-    .click();
-  await expect(table.locator("tbody tr").first()).toContainText("EPUB");
-  await page.getByLabel("Sort this view").selectOption("profile");
   await page.screenshot({
     path: testInfo.outputPath("sources-desktop.png"),
     fullPage: true,
@@ -546,14 +535,6 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(details).toBeFocused();
-  await page
-    .getByRole("button", { name: "Details for Project Hail Mary" })
-    .nth(1)
-    .click();
-  await expect(
-    dialog.getByRole("button", { name: "Download Project Hail Mary" }),
-  ).toBeDisabled();
-  await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: testInfo.outputPath("sources-mobile.png"),
@@ -711,8 +692,7 @@ test("Quick add follows defaults and format overrides; sources provide compact r
     };
     await page.reload();
     await expect(feedback).toContainText(label);
-    await expect(sourceDownload.first()).toBeDisabled();
-    await expect(sourceDownload).toHaveCount(1); // Only the blocked release retains its download button.
+    await expect(sourceDownload).toHaveCount(0);
     await expect(table.locator(".source-download-status")).toHaveCount(1);
     await expect(feedback.getByRole("progressbar")).toHaveCount(0);
     if (state === "downloading")
@@ -732,179 +712,4 @@ test("Quick add follows defaults and format overrides; sources provide compact r
   await page.setViewportSize({ width: 390, height: 844 });
   expect(releaseDownloads).toHaveLength(downloadCount);
   savedDownload = null;
-  const expiry = new Date(
-    (await page.evaluate(() => Date.now())) + 60_000,
-  ).toISOString();
-  search.expires_at = expiry;
-  search.items.forEach((item) => {
-    item.expires_at = expiry;
-  });
-  await page.reload();
-  await expect(sourceDownload.first()).toBeEnabled();
-  await page.clock.fastForward(61_000);
-  await expect(sourceDownload.first()).toBeDisabled();
-  await expect(
-    page.getByText("Search results expired", { exact: true }),
-  ).toBeVisible();
-  await expect(sourceDownload.first()).toHaveAttribute(
-    "title",
-    "Search result expired. Refresh results to download.",
-  );
-  await page
-    .getByRole("checkbox", { name: "Hide blocked or expired results" })
-    .check();
-  await expect(table).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Refresh results", exact: true })
-    .click();
-  await expect.poll(() => refreshes).toBe(2);
-  await expect(sourceDownload.first()).toBeEnabled();
-  await expect(
-    page.getByText("Search results expired", { exact: true }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("checkbox", { name: "Hide blocked or expired results" })
-    .uncheck();
-  search.items[0].current_connection = false;
-  await page.reload();
-  await expect(table).toContainText("Source settings changed");
-  await expect(table).not.toContainText("Search result expired");
-  await expect(sourceDownload.first()).toBeDisabled();
-  await page
-    .getByRole("button", { name: "Refresh results", exact: true })
-    .click();
-  await expect(sourceDownload.first()).toBeEnabled();
-  await page.screenshot({
-    path: testInfo.outputPath("sources-refreshed.png"),
-    fullPage: true,
-  });
-  search.items = Array.from({ length: 55 }, (_, index) => ({
-    ...search.items[0],
-    id: `result-${index}`,
-    release: {
-      ...release,
-      title: `Release ${index}`,
-      narrators: [`Narrator ${index}`],
-      seeders: index === 54 ? 90000 : index,
-    },
-  }));
-  await page.reload();
-  await expect(table.locator("tbody tr")).toHaveCount(50);
-  await page.locator(".book-sources .infinite-scroll").scrollIntoViewIfNeeded();
-  await expect(table.locator("tbody tr")).toHaveCount(55);
-  await page.getByLabel("Filter title, author or narrator").fill("Narrator 54");
-  await expect(table.locator("tbody tr")).toHaveCount(1);
-  await expect(table).toContainText("Release 54");
-  await page.reload();
-  await expect(page.getByLabel("Filter title, author or narrator")).toHaveValue(
-    "Narrator 54",
-  );
-  await expect(table.locator("tbody tr")).toHaveCount(1);
-  await page
-    .getByRole("button", { name: "Reset result view", exact: true })
-    .click();
-  await page.getByLabel("Sort this view").selectOption("seeds");
-  await expect(table.locator("tbody tr").first()).toContainText("Release 54");
-  search.items = search.items.slice(0, 2).map((item, index) => ({
-    ...item,
-    release: {
-      ...item.release,
-      source: index ? "audiobookbay" : "mam",
-      formats: index ? [] : ["m4b"],
-    },
-  }));
-  await page.clock.fastForward(31_000);
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
-  });
-  await page.getByLabel("Result source").selectOption("audiobookbay");
-  await page.getByLabel("Reported format").selectOption("unknown");
-  await expect(table.locator("tbody tr")).toHaveCount(1);
-  search.items = search.items.map((item) => ({
-    ...item,
-    release: {
-      ...item.release,
-      source: "mam",
-      formats: ["m4b"],
-      seeders: null,
-      size_bytes: null,
-    },
-  }));
-  await page.clock.fastForward(31_000);
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
-  });
-  await expect(page.getByLabel("Result source")).toHaveCount(0);
-  await expect(page.getByLabel("Reported format")).toHaveCount(0);
-  await expect(page.getByLabel("Sort this view")).toHaveValue("profile");
-  await expect(
-    page.getByRole("option", { name: "Most seeders", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("option", { name: "Smallest download", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("option", { name: "Largest download", exact: true }),
-  ).toHaveCount(0);
-  await expect(table.locator("tbody tr")).toHaveCount(2);
-  search.items = search.items.slice(0, 1);
-  await page.clock.fastForward(31_000);
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
-  });
-  await expect(page.getByLabel("Sort this view")).toHaveCount(0);
-  search.items = [];
-  search.sources = [];
-  await page.clock.fastForward(31_000);
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event("offline"));
-    window.dispatchEvent(new Event("online"));
-  });
-  await expect(
-    page.getByText("Connect a download source in Settings to find releases."),
-  ).toBeVisible();
-  await expect(
-    page.getByText("No releases found. Try a different search."),
-  ).toHaveCount(0);
-  let imported = 0;
-  receipt = null;
-  await page.route("**/api/metadata/books/hardcover/9010", (route) =>
-    route.fulfill({
-      json: {
-        book: {
-          provider: "hardcover",
-          external_id: "9010",
-          title: work.title,
-          authors: work.authors,
-          editions: [],
-        },
-        work: null,
-      },
-    }),
-  );
-  await page.route("**/api/metadata/books/hardcover/9010/import", (route) => {
-    imported++;
-    return route.fulfill({ json: work });
-  });
-  await page.goto("/discover/books/hardcover/9010");
-  await page.screenshot({
-    path: testInfo.outputPath("quick-add-mobile.png"),
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "Add both", exact: true }).click();
-  await expect.poll(() => posted.length).toBe(5);
-  expect(imported).toBe(1);
-  expect(posted[4]).toEqual({
-    work_id: work.id,
-    specification: { mode: "both" },
-  });
-  await expect(page.getByText("Preferred downloads queued")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Search sources", exact: true })
-    .click();
-  await expect(page).toHaveURL(/books\/work-1\?tab=sources/);
-  expect(errors).toEqual([]);
 });

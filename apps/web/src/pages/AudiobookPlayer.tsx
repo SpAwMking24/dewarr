@@ -59,7 +59,41 @@ export default function AudiobookPlayer() {
   return <Player book={book.data} />;
 }
 
-function Player({ book }: { book: ListenBook }) {
+/** The player and its chapter list, shown on the book page in place of the tabs. */
+export function EmbeddedAudiobook({
+  assetId,
+  onClose,
+}: {
+  assetId: string;
+  onClose: () => void;
+}) {
+  const book = useQuery({
+    queryKey: ["listen-book", assetId],
+    queryFn: ({ signal }) => fetchListenBook(assetId, signal),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  if (book.isPending) return <Loading />;
+  if (book.error || !book.data)
+    return (
+      <p role="alert">
+        {book.error instanceof Error
+          ? book.error.message
+          : "Could not open this audiobook."}
+      </p>
+    );
+  return <Player book={book.data} embedded onClose={onClose} />;
+}
+
+function Player({
+  book,
+  embedded = false,
+  onClose,
+}: {
+  book: ListenBook;
+  embedded?: boolean;
+  onClose?: () => void;
+}) {
   const audio = useRef<HTMLAudioElement>(null);
   const resume = useRef(parseListenPosition(book.progress?.cfi));
   const lastSave = useRef(0);
@@ -249,31 +283,63 @@ function Player({ book }: { book: ListenBook }) {
 
   const src = `/api/listen/assets/${book.asset_id}/tracks/${track}`;
 
+  const chapterList = (
+    <ol>
+      {chapters.map((chapter, index) => (
+        <li key={`${chapter.track}:${chapter.start}:${index}`}>
+          <button
+            type="button"
+            aria-current={chapter === chapterNow ? "true" : undefined}
+            onClick={() => {
+              goTo(chapter.track, chapter.start, true);
+              if (!embedded) setChaptersOpen(false);
+            }}
+          >
+            <span>{chapter.title}</span>
+            <small>{clock(chapter.start)}</small>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+
   return (
-    <div className="listen-page">
-      <header className="listen-top">
-        <Link
-          to={book.work_id ? `/books/${book.work_id}` : "/library"}
-          className="listen-back"
-        >
-          <ArrowLeft size={18} aria-hidden /> Back
-        </Link>
-        <button
-          type="button"
-          className="listen-icon"
-          aria-label="Chapters"
-          aria-expanded={chaptersOpen}
-          onClick={() => setChaptersOpen((open) => !open)}
-        >
-          <List size={18} aria-hidden />
-        </button>
-      </header>
+    <div className={embedded ? "listen-page listen-embedded" : "listen-page"}>
+      {embedded && (
+        <header className="listen-embedded-head">
+          <strong>Listening</strong>
+          <button type="button" onClick={onClose}>
+            Close player
+          </button>
+        </header>
+      )}
+      {!embedded && (
+        <header className="listen-top">
+          <Link
+            to={book.work_id ? `/books/${book.work_id}` : "/library"}
+            className="listen-back"
+          >
+            <ArrowLeft size={18} aria-hidden /> Back
+          </Link>
+          <button
+            type="button"
+            className="listen-icon"
+            aria-label="Chapters"
+            aria-expanded={chaptersOpen}
+            onClick={() => setChaptersOpen((open) => !open)}
+          >
+            <List size={18} aria-hidden />
+          </button>
+        </header>
+      )}
       <main className="listen-main">
-        {book.cover_url && (
+        {!embedded && book.cover_url && (
           <img className="listen-cover" src={book.cover_url} alt="" />
         )}
-        <h1>{book.title}</h1>
-        <p className="listen-authors">{book.authors.join(", ")}</p>
+        {!embedded && <h1>{book.title}</h1>}
+        {!embedded && (
+          <p className="listen-authors">{book.authors.join(", ")}</p>
+        )}
         <p className="listen-chapter" aria-live="polite">
           {chapterNow?.title}
         </p>
@@ -411,37 +477,28 @@ function Player({ book }: { book: ListenBook }) {
           </label>
         </div>
       </main>
-      {chaptersOpen && (
-        <aside className="listen-chapters" aria-label="Chapters">
-          <div className="listen-chapters-head">
-            <strong>Chapters</strong>
-            <button
-              type="button"
-              className="listen-icon"
-              aria-label="Close chapters"
-              onClick={() => setChaptersOpen(false)}
-            >
-              <X size={16} aria-hidden />
-            </button>
-          </div>
-          <ol>
-            {chapters.map((chapter, index) => (
-              <li key={`${chapter.track}:${chapter.start}:${index}`}>
-                <button
-                  type="button"
-                  aria-current={chapter === chapterNow ? "true" : undefined}
-                  onClick={() => {
-                    goTo(chapter.track, chapter.start, true);
-                    setChaptersOpen(false);
-                  }}
-                >
-                  <span>{chapter.title}</span>
-                  <small>{clock(chapter.start)}</small>
-                </button>
-              </li>
-            ))}
-          </ol>
+      {embedded ? (
+        <aside className="listen-chapters-inline" aria-label="Chapters">
+          <strong>Chapters</strong>
+          {chapterList}
         </aside>
+      ) : (
+        chaptersOpen && (
+          <aside className="listen-chapters" aria-label="Chapters">
+            <div className="listen-chapters-head">
+              <strong>Chapters</strong>
+              <button
+                type="button"
+                className="listen-icon"
+                aria-label="Close chapters"
+                onClick={() => setChaptersOpen(false)}
+              >
+                <X size={16} aria-hidden />
+              </button>
+            </div>
+            {chapterList}
+          </aside>
+        )
       )}
     </div>
   );

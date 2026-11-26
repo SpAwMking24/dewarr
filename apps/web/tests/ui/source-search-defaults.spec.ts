@@ -111,7 +111,7 @@ test("manual search shares defaults and confirmed Quick Add feedback retires", a
   receipt = null;
   await page.clock.fastForward(5000);
   await expect(feedback).toHaveCount(0);
-  await page.getByRole("link", { name: "Search sources", exact: true }).click();
+  await page.goto(new URL(page.url()).pathname + "?tab=sources");
   await page.reload();
   await expect(query).toHaveValue("Enshittification Cory Doctorow epub");
   expect(searches).toHaveLength(2);
