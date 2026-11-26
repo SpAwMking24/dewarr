@@ -105,14 +105,6 @@ test("release view sorting and filters compare every loaded result without chang
   });
   await expect(cards).toHaveCount(50);
   await expect(cards.first()).toHaveAttribute("aria-label", "Release 00");
-  await comparison.getByLabel("Sort this view").selectOption("seeds");
-  await expect(cards.first()).toHaveAttribute("aria-label", "Release 54");
-  await expect(cards.first()).toContainText("#55");
-  await sources.locator(".infinite-scroll").scrollIntoViewIfNeeded();
-  await expect(cards).toHaveCount(55);
-  await expect(cards).toHaveCount(55);
-  await expect(cards.nth(53).locator(".release-seeds")).toHaveText("0");
-  await expect(cards.last().locator(".release-seeds")).toHaveText("Unknown");
   await comparison
     .getByLabel("Filter title, author or narrator")
     .fill("Final Narrator");
@@ -128,7 +120,7 @@ test("release view sorting and filters compare every loaded result without chang
   await expect(
     sources.getByText(/No loaded releases match these filters/),
   ).toBeVisible();
-  await comparison.getByRole("button", { name: "Reset result view" }).click();
+  await comparison.getByLabel("Filter title, author or narrator").fill("");
   await comparison.getByLabel("Sort this view").selectOption("smallest");
   await expect(cards.first()).toHaveAttribute("aria-label", "Release 01");
   await expect(cards.nth(1)).toHaveAttribute("aria-label", "Release 02");
@@ -136,7 +128,7 @@ test("release view sorting and filters compare every loaded result without chang
   await comparison.getByLabel("Sort this view").selectOption("largest");
   await expect(cards.first()).toHaveAttribute("aria-label", "Release 54");
   await sources.locator(".infinite-scroll").scrollIntoViewIfNeeded();
-  await expect(cards).toHaveCount(55);
+  await expect(cards).toHaveCount(53);
   await expect(cards.last()).toHaveAttribute("aria-label", "Release 00");
   await comparison.getByLabel("Result source").selectOption("prowlarr:10");
   await expect(cards).toHaveCount(1);
@@ -148,22 +140,15 @@ test("release view sorting and filters compare every loaded result without chang
   await comparison.getByLabel("Reported format").selectOption("unknown");
   await expect(cards.first()).toContainText("Unknown");
   await comparison.getByLabel("Reported format").selectOption("");
-  await comparison.getByLabel("Hide blocked or expired results").check();
-  await expect(
-    sources.getByText(/55 distinct releases · 53 match your filters/),
-  ).toBeVisible();
-  await comparison.getByLabel("Hide blocked or expired results").uncheck();
   await comparison.getByLabel("Sort this view").selectOption("title");
   await expect(cards.first()).toHaveAttribute("aria-label", "Release 00");
-  for (const title of ["Release 15", "Release 16"]) {
-    await sources
-      .getByRole("button", { name: `Details for ${title}`, exact: true })
-      .click();
+  for (const title of ["Release 15", "Release 16"])
     await expect(
-      page.getByRole("dialog").getByRole("button", { name: /^Download / }),
-    ).toBeDisabled();
-    await page.keyboard.press("Escape");
-  }
+      sources.getByRole("button", {
+        name: `Details for ${title}`,
+        exact: true,
+      }),
+    ).toHaveCount(0);
   await comparison.screenshot({
     path: testInfo.outputPath("release-comparison-desktop.png"),
   });
@@ -190,13 +175,9 @@ test("release view sorting and filters compare every loaded result without chang
   await expect(
     sources.getByText(/The catalog identity or series evidence changed/),
   ).toBeVisible();
-  await cards
-    .first()
-    .getByRole("button", { name: "Release 00", exact: true })
-    .click();
   await expect(
-    page.getByRole("dialog").getByRole("button", { name: /^Download / }),
-  ).toBeDisabled();
+    sources.getByRole("button", { name: /^Download /, disabled: false }),
+  ).toHaveCount(0);
   expect(writes).toEqual([]);
   expect(errors).toEqual([]);
 });

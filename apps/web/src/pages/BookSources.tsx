@@ -346,13 +346,11 @@ function Results({
   const text = view.get("releaseFilter") || "";
   const source = view.get("releaseSource") || "";
   const format = view.get("releaseFormat") || "";
-  const hideBlocked = view.get("releaseAvailable") === "1";
+  const hideBlocked = true;
   const setSort = (v: string) => updateView({ releaseSort: v });
   const setText = (v: string) => updateView({ releaseFilter: v });
   const setSource = (v: string) => updateView({ releaseSource: v });
   const setFormat = (v: string) => updateView({ releaseFormat: v });
-  const setHideBlocked = (v: boolean) =>
-    updateView({ releaseAvailable: v ? "1" : null });
   const resultsHeading = useRef<HTMLParagraphElement>(null);
   const origins = new Map(
     data.items.map(({ release }) => [sourceKey(release), sourceName(release)]),
@@ -436,12 +434,7 @@ function Results({
       order = a.item.release.title.localeCompare(b.item.release.title);
     return order || a.rank - b.rank;
   });
-  const filteredView = !!(
-    needle ||
-    activeSource ||
-    activeFormat ||
-    hideBlocked
-  );
+  const filteredView = !!(needle || activeSource || activeFormat);
   const visibleCount = (pageIndex + 1) * 50;
   // The top result in preferred order that is clearly this book and ready to download.
   const best =
@@ -650,7 +643,6 @@ function Results({
                   }}
                 >
                   <option value="profile">Preferred order</option>
-                  {hasSeeders && <option value="seeds">Most seeders</option>}
                   {hasSize && (
                     <option value="smallest">Smallest download</option>
                   )}
@@ -701,33 +693,7 @@ function Results({
                 </select>
               </label>
             )}
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={hideBlocked}
-                onChange={(event) => {
-                  setHideBlocked(event.target.checked);
-                  setPageIndex(0);
-                }}
-              />
-              Hide blocked or expired results
-            </label>
           </div>
-
-          {(filteredView || activeSort !== "profile") && (
-            <button
-              onClick={() => {
-                setText("");
-                setSource("");
-                setFormat("");
-                setHideBlocked(false);
-                setSort("profile");
-                setPageIndex(0);
-              }}
-            >
-              Reset result view
-            </button>
-          )}
         </section>
       )}
       {showAll && (
@@ -765,7 +731,6 @@ function Results({
                     <th scope="col">Narrators</th>
                     <th scope="col">Size</th>
                     <th scope="col">Format</th>
-                    <th scope="col">Seeds</th>
                     <th scope="col">Tags</th>
                     <th scope="col">Status / actions</th>
                   </tr>
@@ -821,15 +786,6 @@ function Results({
                               ? "Ebook"
                               : "Unknown medium"}
                         </small>
-                      </td>
-                      <td
-                        data-label="Availability"
-                        className="release-numeric release-seeds"
-                      >
-                        {item.release.protocol === "soulseek"
-                          ? "Peer online"
-                          : (item.release.seeders?.toLocaleString() ??
-                            "Unknown")}
                       </td>
                       <td data-label="Tags">
                         <ReleaseTags release={item.release} />
