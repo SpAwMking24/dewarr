@@ -1,9 +1,11 @@
 """Built-in audiobook player API: range-stream owned audio files and sync listening position."""
 
 import asyncio
+import errno
 import json
 import os
 import re
+import stat
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -229,8 +231,21 @@ async def _local_candidates(db, library_id: UUID, path: str) -> list[tuple[str, 
 def _open_candidate(root_path: str, rel: str):
     """Return (fd, size, absolute_path) for a regular file safely beneath root_path."""
     relative_parts(rel)
-    with directory(Path(root_path)) as root_fd, beneath(root_fd, rel) as file_fd:
-        dup_fd = os.dup(file_fd)
+    try:
+        with directory(Path(root_path)) as root_fd, beneath(root_fd, rel) as file_fd:
+            dup_fd = os.dup(file_fd)
+    except OSError as error:
+        if error.errno != errno.ELOOP:
+            raise
+        # A symbolic link inside the library: follow it only if it stays under the root.
+        real_root = os.path.realpath(root_path)
+        real = os.path.realpath(os.path.join(root_path, rel))
+        if os.path.commonpath([real_root, real]) != real_root:
+            raise
+        dup_fd = os.open(real, os.O_RDONLY)
+        if not stat.S_ISREG(os.fstat(dup_fd).st_mode):
+            os.close(dup_fd)
+            raise
     return dup_fd, os.fstat(dup_fd).st_size, str(Path(root_path) / rel)
 
 
@@ -285,17 +300,32 @@ def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
     return best[2], os.path.normpath(best[3])
 
 
+LAST_ERROR: dict[str, str] = {}
+
+
+def _note(error: Exception, root_path: str, rel: str) -> None:
+    if isinstance(error, PermissionError) or (
+        isinstance(error, OSError) and error.errno in {errno.EACCES, errno.EPERM}
+    ):
+        LAST_ERROR["permission"] = (
+            f"Permission denied reading {root_path}/{rel} "
+            f"(Dewarr runs as uid {os.geteuid()}, gid {os.getegid()})."
+        )
+
+
 async def _open_audio(db, library_id: UUID, path: str, direct=None):
+    LAST_ERROR.clear()
     if direct:
         try:
             return _open_candidate(*direct)
-        except (OSError, ValueError, HTTPException):
-            pass
+        except (OSError, ValueError, HTTPException) as error:
+            _note(error, *direct)
     candidates = await _local_candidates(db, library_id, path)
     for root_path, rel in candidates:
         try:
             return _open_candidate(root_path, rel)
-        except (OSError, ValueError, HTTPException):
+        except (OSError, ValueError, HTTPException) as error:
+            _note(error, root_path, rel)
             continue
     roots = [root for root, _ in candidates]
     found = await anyio.to_thread.run_sync(_search_by_name, roots, path)
@@ -461,7 +491,8 @@ async def listen_track(
     if not opened:
         raise HTTPException(
             404,
-            "Audio file is not available in a folder Dewarr can read "
+            LAST_ERROR.get("permission")
+            or "Audio file is not available in a folder Dewarr can read "
             f"(looked for {info['path']}). Mount the audiobooks folder into the container.",
         )
     fd, size, _ = opened
