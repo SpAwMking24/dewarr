@@ -363,3 +363,13 @@
   opacity: 0.65;
   overflow-wrap: break-word;
 }
+
+.request-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}

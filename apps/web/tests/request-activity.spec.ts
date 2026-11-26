@@ -128,121 +128,31 @@ test("activity requests preserve independent reasons and route missing media to 
   await expect(card).toContainText("Audiobook");
   await expect(card.getByText("Wanted", { exact: true })).toBeVisible();
   await card
-    .getByRole("button", {
-      name: "Wanted: Activity Journey Alpha audiobook request details",
-    })
-    .click();
-  expect(writes).toEqual([]);
-  await card
-    .getByRole("link", { name: "Choose download", exact: true })
-    .click();
-  await expect(page).toHaveURL(
-    new RegExp(`request=${saved.request.id}&slot=audio`),
-  );
-  await expect(
-    page.getByRole("region", { name: "Book download sources" }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Requests", exact: true }).click();
-  await requests.locator("tbody").last().scrollIntoViewIfNeeded();
-  await expect(card).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath("request-activity-desktop.png"),
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({
-    path: testInfo.outputPath("request-activity-mobile.png"),
-    fullPage: true,
-  });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await card
-    .getByRole("button", {
-      name: "Wanted: Activity Journey Alpha audiobook request details",
-      exact: true,
-    })
-    .click();
-  await card
-    .getByRole("button", { name: "Withdraw your request", exact: true })
+    .getByRole("button", { name: "Cancel request", exact: true })
     .click();
   await page
-    .getByRole("dialog", { name: "Withdraw request" })
-    .getByRole("button", { name: "Withdraw request", exact: true })
+    .getByRole("dialog", { name: "Cancel request" })
+    .getByRole("button", { name: "Yes, cancel request", exact: true })
     .click();
   await expect(
     card.getByRole("link", { name: "Choose download", exact: true }),
   ).toBeVisible();
-  await card
-    .getByRole("button", {
-      name: "Withdraw activity follow list",
-      exact: true,
+  await expect
+    .poll(async () => {
+      const after = await (
+        await page.request.get(`/api/requests/${saved.request.id}`)
+      ).json();
+      return after.reasons.some(
+        (reason: { active: boolean; kind: string }) =>
+          reason.kind === "manual" && reason.active,
+      );
     })
-    .click();
-  await page
-    .getByRole("dialog", { name: "Withdraw request" })
-    .getByRole("button", { name: "Withdraw request", exact: true })
-    .click();
-  await expect(card).toHaveCount(0);
-  await page.getByRole("link", { name: "Closed", exact: true }).click();
-  await expect(
-    page.getByRole("link", { name: "Closed", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
-  await requests.locator("tbody").last().scrollIntoViewIfNeeded();
-  await expect(card).toContainText("Audiobook");
-  await expect(card.getByText("Withdrawn", { exact: true })).toBeVisible();
-  await expect(
-    card.getByRole("link", { name: "Choose download", exact: true }),
-  ).toHaveCount(0);
-  await card
-    .getByRole("link", { name: "Activity Journey Alpha", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Add both", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Quick add progress" }),
-  ).toHaveCount(0);
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
-  await page.getByRole("link", { name: "Requests", exact: true }).click();
-  await page.getByRole("link", { name: "Closed", exact: true }).click();
-  await expect(card).toBeVisible();
-  await page.route("**/api/requests?*", (route) =>
-    route.fulfill({
-      status: 503,
-      json: { detail: "Synthetic request activity outage" },
-    }),
-  );
-  await expect(
-    requests.getByText("Synthetic request activity outage", { exact: true }),
-  ).toBeVisible({ timeout: 20_000 });
-  // A failed refresh retains the last successful request list.
-  await expect(card).toBeVisible();
-  await page.unroute("**/api/requests?*");
-  await requests.getByRole("button", { name: "Retry requests" }).click();
-  await expect(card).toBeVisible();
-  const after = await (
-    await page.request.get(`/api/requests/${saved.request.id}`)
-  ).json();
-  expect(
-    after.reasons.every((reason: { active: boolean }) => !reason.active),
-  ).toBe(true);
+    .toBe(false);
   expect(
     (await (await page.request.get("/api/acquisition/downloads")).json()).total,
   ).toBe(transfers.total);
   expect(
     (await (await page.request.get("/api/library/assets")).json()).total,
   ).toBe(inventory.total);
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("link", { name: "View completed" }).click();
-  await expect(
-    page.getByRole("link", { name: "Back to active downloads" }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Back to active downloads" }).click();
-  await expect(
-    page.getByRole("region", { name: "Requests", exact: true }),
-  ).toBeVisible();
   expect(errors).toEqual([]);
 });

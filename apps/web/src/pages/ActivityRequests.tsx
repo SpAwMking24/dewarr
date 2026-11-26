@@ -625,6 +625,17 @@ function RequestCard({
             onSelect: () => setWithdrawReason(reason.id),
           }))
       : [];
+  const cancelReason =
+    withdrawals.length > 0
+      ? (
+          request.reasons.find(
+            (item) => item.active && item.kind === "manual",
+          ) ?? request.reasons.find((item) => item.active)
+        )?.id
+      : undefined;
+  const cancelIndex = request.targets.findIndex(
+    (target) => target.state !== "satisfied",
+  );
   return (
     <tbody
       id={`request-${request.id}`}
@@ -640,7 +651,14 @@ function RequestCard({
           onTransfer,
           () => setExpanded(isExpanded ? null : target.slot),
         );
-        const more = [...plan.more, ...(index === 0 ? withdrawals : [])];
+        const more = [
+          ...plan.more,
+          ...(index === 0
+            ? withdrawals.filter(
+                (item) => item.key !== `withdraw-${cancelReason}`,
+              )
+            : []),
+        ];
         const detailsId = `request-details-${request.id}-${target.slot}`;
         const label = statusLabel(request, target);
         const active = label === "Downloading";
@@ -718,6 +736,19 @@ function RequestCard({
                   )}
                   {mediumLabel(target.slot)}
                 </span>
+                {cancelReason && index === cancelIndex && (
+                  <button
+                    type="button"
+                    className="request-cancel"
+                    aria-label="Cancel request"
+                    data-danger
+                    disabled={busy}
+                    onClick={() => setWithdrawReason(cancelReason)}
+                  >
+                    <X size={12} aria-hidden />
+                    Cancel
+                  </button>
+                )}
               </td>
               <td>
                 {!actionOnly && (
@@ -894,7 +925,7 @@ function RequestCard({
         <tr>
           <td colSpan={4} className="request-dialog-cell">
             <BookDialog
-              title="Withdraw request"
+              title="Cancel request"
               close={() => setWithdrawReason(null)}
             >
               <p>
@@ -921,7 +952,7 @@ function RequestCard({
                     setWithdrawReason(null);
                   }}
                 >
-                  Withdraw request
+                  Yes, cancel request
                 </button>
               </div>
             </BookDialog>

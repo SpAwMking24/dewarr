@@ -262,22 +262,13 @@ test("requests show transfer telemetry, review actions and counts in compact row
   await expect(table.getByRole("button", { name: /^Details for/ })).toHaveCount(
     0,
   );
-  // Withdrawing is tucked into the expanded row rather than an icon on every row.
-  const undo = downloading.getByRole("button", {
-    name: "Withdraw your request",
-  });
-  await expect(undo).toHaveCount(0);
-  const downloadingDetails = downloading.getByRole("button", {
-    name: "Downloading: Project Hail Mary audiobook request details",
-  });
-  await downloadingDetails.click();
+  const undo = downloading.getByRole("button", { name: "Cancel request" });
   await expect(undo).toHaveCount(1);
-  await undo.first().click();
-  const dialog = page.getByRole("dialog", { name: "Withdraw request" });
+  await undo.click();
+  const dialog = page.getByRole("dialog", { name: "Cancel request" });
   await expect(dialog).toContainText("audiobook and ebook");
   await dialog.getByRole("button", { name: "Keep request" }).click();
   expect(withdrawals).toBe(0);
-  await downloadingDetails.click();
   progress = 0.67;
   await expect(downloading).toContainText("67%", { timeout: 10000 });
   attemptState = "queued";
@@ -316,27 +307,15 @@ test("requests show transfer telemetry, review actions and counts in compact row
     path: testInfo.outputPath("request-details-desktop.png"),
     fullPage: true,
   });
-  await downloading
-    .getByRole("button", {
-      name: "Downloading: Project Hail Mary audiobook request details",
-    })
-    .click();
-  await expect(
-    downloading.getByRole("button", { name: "Withdraw your request" }).first(),
-  ).toBeVisible();
-  await downloading
-    .getByRole("button", { name: "Withdraw your request" })
-    .first()
-    .click();
+  await downloading.getByRole("button", { name: "Cancel request" }).click();
   await dialog
-    .getByRole("button", { name: "Withdraw request", exact: true })
+    .getByRole("button", { name: "Yes, cancel request", exact: true })
     .click();
   await expect.poll(() => withdrawals).toBe(1);
   await expect(dialog).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileUndo = await downloading
-    .getByRole("button", { name: "Withdraw your request" })
-    .first()
+    .getByRole("button", { name: "Cancel request" })
     .boundingBox();
   expect(mobileUndo!.x).toBeGreaterThanOrEqual(0);
   expect(mobileUndo!.x + mobileUndo!.width).toBeLessThanOrEqual(390);
