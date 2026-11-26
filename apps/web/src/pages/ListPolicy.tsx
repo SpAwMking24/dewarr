@@ -243,6 +243,7 @@ function PolicyEditor({
       ).map(([m, r]) => [m, r.destination_id]),
     ),
   );
+  const [chosen, setChosen] = useState(!downloadAll);
   const [selected, setSelected] = useState<string[]>([]);
   const [selectAllMissing, setSelectAllMissing] = useState(false);
   const [selectionValid, setSelectionValid] = useState(false);
@@ -432,6 +433,7 @@ function PolicyEditor({
     // reader only has to confirm.
     if (
       autoPreview.current &&
+      chosen &&
       selectAllMissing &&
       !previewId &&
       !previewBlocked &&
@@ -441,8 +443,53 @@ function PolicyEditor({
       preview.mutate();
     }
   });
+  if (!chosen) {
+    const choices = [
+      ["ebook", "Ebooks"],
+      ["audio", "Audiobooks"],
+      ["both", "Ebooks and audiobooks"],
+    ] as const;
+    return (
+      <div
+        className="download-all-choice"
+        role="group"
+        aria-label="Download all"
+      >
+        <h3>What should I download?</h3>
+        <p>Every book by this author that is not already in your library.</p>
+        <div className="button-row">
+          {choices.map(([value, label]) => (
+            <button
+              key={value}
+              className={value === "both" ? "primary" : undefined}
+              onClick={() => {
+                setMedium(value);
+                setChosen(true);
+                changed();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  const blockedReason =
+    downloadAll && !previewId && options.isSuccess && profiles.isSuccess
+      ? !downloader
+        ? "No download client is connected. Connect one in Settings, then Download clients."
+        : media.some((m) => !destination(m))
+          ? "No library folder is ready for " +
+            (media.find((m) => !destination(m)) === "audio"
+              ? "audiobooks"
+              : "ebooks") +
+            ". Check Settings, then Libraries."
+          : null
+      : null;
   return (
     <>
+      {blockedReason && <p role="alert">{blockedReason}</p>}
       <Notice
         error={
           options.error ||
