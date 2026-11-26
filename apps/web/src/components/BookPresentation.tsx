@@ -44,6 +44,7 @@ export function BookHero({
   editions,
   editionsMore,
   headingRef,
+  authorFollow,
   children,
 }: {
   providerBook?: { provider: string; external_id: string };
@@ -60,6 +61,8 @@ export function BookHero({
   editions?: number;
   editionsMore?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
+  /** Follow control shown beside the author name. */
+  authorFollow?: ReactNode;
   children: ReactNode;
 }) {
   const longTitle = title.length > 90;
@@ -95,7 +98,7 @@ export function BookHero({
           {headline}
         </h1>
         {subtitle && <p className="reader-subtitle">{subtitle}</p>}
-        <p className="author-line">
+        <div className="author-line">
           {authors.length
             ? authors.map((name, index) => (
                 <span key={`${name}:${index}`}>
@@ -116,7 +119,8 @@ export function BookHero({
                 </span>
               ))
             : "Author unknown"}
-        </p>
+          {authorFollow}
+        </div>
         {work?.availability.audio && (
           <p className="narrator-line">
             {work.availability.primary_audio_narrators?.length

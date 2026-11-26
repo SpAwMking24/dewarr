@@ -32,10 +32,13 @@ export default function FollowCatalog({
   kind,
   externalId,
   name,
+  downloadAll = false,
 }: {
   kind: "author" | "series";
   externalId: string;
   name: string;
+  /** Offer "Download all"; only the author's own page does. */
+  downloadAll?: boolean;
 }) {
   const followedLink = useRef<HTMLAnchorElement>(null);
   const navigate = useNavigate();
@@ -88,7 +91,7 @@ export default function FollowCatalog({
           {!existing.subscription.enabled ? " · Updates paused" : ""}
         </Link>
       ) : null}
-      {existing && kind === "author" ? (
+      {downloadAll && existing && kind === "author" ? (
         <Link
           className="reader-action-link"
           to={downloadAllHref(existing.list_id)}
@@ -112,7 +115,7 @@ export default function FollowCatalog({
               : "Follow future additions"}
         </button>
       )}
-      {!existing && kind === "author" ? (
+      {downloadAll && !existing && kind === "author" ? (
         <button
           type="button"
           disabled={query.isPending || !!query.error || saving}

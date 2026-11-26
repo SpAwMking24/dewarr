@@ -596,3 +596,16 @@
 .part-set .button-row {
   margin-top: 8px;
 }
+
+.reader-page .book-detail-hero .author-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+.reader-page .book-detail-hero .author-line .catalog-follow-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}

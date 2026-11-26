@@ -258,6 +258,11 @@ function BookDetailContent({
           metadata.data?.sources.some((item) => item.editions_more)
         }
         headingRef={heading}
+        authorFollow={
+          canEdit && !!community.data?.authors?.length ? (
+            <AuthorFollows authors={community.data.authors} />
+          ) : undefined
+        }
         series={
           !!series.length && (
             <div className="reader-series">
@@ -316,15 +321,6 @@ function BookDetailContent({
                 : "Listen"}
             </button>
           )}
-          {work.availability.owned && (
-            <Link
-              className="reader-action-link"
-              to={href("library")}
-              state={location.state}
-            >
-              View library copies
-            </Link>
-          )}
           {canEdit &&
             (unreleased ? (
               <FollowRelease
@@ -362,9 +358,6 @@ function BookDetailContent({
             >
               Add to reading list
             </button>
-          )}
-          {canEdit && !!community.data?.authors?.length && (
-            <AuthorFollows authors={community.data.authors} />
           )}
           <div className="reader-outbound">
             {hardcover && (

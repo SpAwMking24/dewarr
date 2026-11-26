@@ -111,6 +111,7 @@ function AuthorContent({
           )}
           {canEdit && (
             <FollowCatalog
+              downloadAll
               kind="author"
               externalId={externalId}
               name={author.name}

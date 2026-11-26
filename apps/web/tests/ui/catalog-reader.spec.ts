@@ -221,7 +221,7 @@ for (const unlinked of [false, true]) {
     ).toHaveCount(0);
     await expect(
       page
-        .locator(".reader-actions")
+        .locator(".author-line")
         .getByRole("button", { name: "Follow author", exact: true }),
     ).toBeVisible();
     await expect(page.locator(".reader-hero")).toContainText("4.35");
@@ -238,9 +238,10 @@ for (const unlinked of [false, true]) {
       path: testInfo.outputPath("catalog-overview-desktop.png"),
       fullPage: true,
     });
-    await page
-      .getByRole("link", { name: "View library copies", exact: true })
-      .click();
+    await expect(
+      page.getByRole("link", { name: "View library copies", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("tab", { name: "Library copies" }).click();
     await expect(
       page.getByRole("tab", { name: "Library copies" }),
     ).toHaveAttribute("aria-selected", "true");

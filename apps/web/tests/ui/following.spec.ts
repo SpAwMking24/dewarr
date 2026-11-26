@@ -462,7 +462,7 @@ for (const path of ["/books/work-one", "/discover/books/hardcover/42"]) {
     const state = await fixture(page);
     await page.goto(path);
     await page
-      .locator(".reader-actions")
+      .locator(".reader-actions, .author-line")
       .getByText("Follow authors", { exact: true })
       .click();
     const first = page.locator(".book-author-follows li").filter({

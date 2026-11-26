@@ -171,7 +171,9 @@ test("Book page opens the player in place of the tabs and hides formats already 
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Listen" }).click();
   await expect(page.getByRole("tablist")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Play", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("complementary", { name: "Chapters" }),
   ).toContainText("Chapter 2: The Tides");
