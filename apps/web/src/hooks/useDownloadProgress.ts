@@ -3,22 +3,42 @@ import { api, result, type Auth } from "../api/client";
 
 export type MediaProgress = { ebook?: number; audio?: number };
 
+type ProgressMap = {
+  byWork: Record<string, MediaProgress>;
+  byTitle: Record<string, MediaProgress>;
+};
+
+const ACTIVE_ATTEMPTS = new Set([
+  "queued",
+  "preflight",
+  "submitting",
+  "uncertain",
+  "downloading",
+]);
+
+function normaliseTitle(title: string) {
+  return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 /**
  * Live download progress (0 to 1) per work and medium. One shared query
- * serves every cover on the page.
+ * serves every cover on the page, matching by work id or normalised title.
  */
-export function useDownloadProgress(workId?: string | null) {
+export function useDownloadProgress(
+  workId?: string | null,
+  title?: string | null,
+) {
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
     enabled: false,
   });
-  const query = useQuery({
+  const query = useQuery<ProgressMap>({
     queryKey: ["download-progress"],
-    enabled: !!session && !!workId,
+    enabled: !!session && (!!workId || !!title),
     retry: false,
     staleTime: 2000,
     refetchInterval: (q) =>
-      Object.keys(q.state.data || {}).length ? 3000 : 12_000,
+      Object.keys(q.state.data?.byWork || {}).length ? 2500 : 6000,
     queryFn: async () => {
       const page = result(
         await api.GET("/api/requests", {
@@ -26,25 +46,54 @@ export function useDownloadProgress(workId?: string | null) {
         }),
       );
       const byWork: Record<string, MediaProgress> = {};
+      const byTitle: Record<string, MediaProgress> = {};
       for (const request of page.items) {
+        const key = request.work_title
+          ? normaliseTitle(request.work_title)
+          : "";
         for (const target of request.targets) {
-          if (typeof target.progress !== "number" || target.progress >= 1)
+          if (target.state === "satisfied" || target.state === "cancelled")
             continue;
           const medium =
             target.slot === "audio"
               ? "audio"
-              : target.slot === "ebook"
+              : target.slot === "ebook" || target.slot === "either"
                 ? "ebook"
                 : null;
           if (!medium) continue;
+          let value: number | null = null;
+          if (typeof target.progress === "number") {
+            value = Math.max(0, Math.min(1, target.progress));
+          } else if (
+            (target.attempt_state &&
+              ACTIVE_ATTEMPTS.has(target.attempt_state)) ||
+            (target.import_state &&
+              target.import_state !== "imported" &&
+              target.import_state !== "failed")
+          ) {
+            value = 0;
+          }
+          if (value === null) continue;
           byWork[request.work_id] = {
             ...byWork[request.work_id],
-            [medium]: Math.max(0, Math.min(1, target.progress)),
+            [medium]: value,
           };
+          if (key) {
+            byTitle[key] = {
+              ...byTitle[key],
+              [medium]: value,
+            };
+          }
         }
       }
-      return byWork;
+      return { byWork, byTitle };
     },
   });
-  return workId ? query.data?.[workId] : undefined;
+  if (!query.data) return undefined;
+  if (workId && query.data.byWork[workId]) return query.data.byWork[workId];
+  if (title) {
+    const key = normaliseTitle(title);
+    if (key && query.data.byTitle[key]) return query.data.byTitle[key];
+  }
+  return undefined;
 }

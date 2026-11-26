@@ -42,7 +42,7 @@ export default function BookCover({
     detail ? work?.id : undefined,
     work?.availability.audio,
   );
-  const progress = useDownloadProgress(work?.id);
+  const progress = useDownloadProgress(work?.id, title);
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
     enabled: false,
@@ -193,16 +193,24 @@ export default function BookCover({
       )}
       {progress && (progress.ebook != null || progress.audio != null) && (
         <div className="cover-water" aria-hidden="true">
-          {(["ebook", "audio"] as const).map((kind) =>
-            progress[kind] == null ? null : (
+          {(["ebook", "audio"] as const).map((kind) => {
+            const value = progress[kind];
+            if (value == null) return null;
+            const pct = Math.round(value * 100);
+            return (
               <span
                 key={kind}
-                className={`cover-water-level water-${kind}`}
-                title={`${kind === "audio" ? "Audiobook" : "Ebook"} ${Math.round(progress[kind]! * 100)}%`}
-                style={{ height: `${Math.max(6, progress[kind]! * 100)}%` }}
-              />
-            ),
-          )}
+                className={`cover-water-col water-${kind}`}
+                title={`${kind === "audio" ? "Audiobook" : "Ebook"} ${pct}%`}
+              >
+                <span
+                  className="cover-water-level"
+                  style={{ height: `${Math.max(8, pct)}%` }}
+                />
+                <span className="cover-water-pct">{pct}%</span>
+              </span>
+            );
+          })}
         </div>
       )}
       <div className="cover-formats">
