@@ -85,18 +85,22 @@ export default function ListPolicy({
   });
   return (
     <section className="panel editor" aria-label="List acquisition policy">
-      <h2>{follow ? "Follow acquisition" : "List acquisition"}</h2>
-      <p>
-        Keep browsing, request books yourself, or automatically acquire missing
-        media when{" "}
-        {follow ? "matching books are discovered" : "books join this list"}.
-      </p>
+      {!downloadAll && (
+        <>
+          <h2>{follow ? "Follow acquisition" : "List acquisition"}</h2>
+          <p>
+            Keep browsing, request books yourself, or automatically acquire
+            missing media when{" "}
+            {follow ? "matching books are discovered" : "books join this list"}.
+          </p>
+        </>
+      )}
       <Notice error={policy.error || books.error || pause.error} />
       {policy.isPending ? (
         <Loading />
       ) : policy.isSuccess ? (
         <>
-          {policy.data && (
+          {policy.data && !downloadAll && (
             <>
               <p role="status">
                 {policy.data.active
@@ -125,7 +129,7 @@ export default function ListPolicy({
           />
         </>
       ) : null}
-      {!!books.data?.items.length && (
+      {!downloadAll && !!books.data?.items.length && (
         <details>
           <summary>Monitored books and backlog</summary>
           {books.data.items.map((book) => (
