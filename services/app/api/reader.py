@@ -225,7 +225,7 @@ async def _open_remote_stream(integration: Integration, asset: LibraryAsset, fil
         return None
     secrets = decrypt_secrets(integration.encrypted_secrets)
     base = str(base_url).rstrip("/")
-    headers = {}
+    headers = {"Accept-Encoding": "identity"}
     if integration.kind == "audiobookshelf":
         token = secrets.get("token")
         if not token:
@@ -268,7 +268,9 @@ async def _open_remote_stream(integration: Integration, asset: LibraryAsset, fil
         "Content-Disposition": _content_disposition(file_info["filename"]),
         "Cache-Control": "private, max-age=300",
     }
-    if content_length := response.headers.get("content-length"):
+    if (
+        content_length := response.headers.get("content-length")
+    ) and not response.headers.get("content-encoding"):
         resp_headers["Content-Length"] = content_length
 
     return StreamingResponse(

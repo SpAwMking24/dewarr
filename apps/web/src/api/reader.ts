@@ -72,10 +72,23 @@ export async function fetchReaderFile(
   filename: string,
   signal?: AbortSignal,
 ): Promise<File> {
-  const response = await fetch(`/api/reader/assets/${assetId}/file`, {
-    credentials: "same-origin",
-    signal,
-  });
+  const timeout = new AbortController();
+  const timer = window.setTimeout(() => timeout.abort(), 120_000);
+  signal?.addEventListener("abort", () => timeout.abort());
+  let response: Response;
+  try {
+    response = await fetch(`/api/reader/assets/${assetId}/file`, {
+      credentials: "same-origin",
+      signal: timeout.signal,
+    });
+  } catch (err) {
+    window.clearTimeout(timer);
+    if (signal?.aborted) throw err;
+    throw new ApiError(
+      "The library server took too long to send this ebook.",
+      504,
+    );
+  }
   if (!response.ok) {
     let detail = "Could not load ebook file.";
     try {
@@ -86,7 +99,15 @@ export async function fetchReaderFile(
     }
     throw new ApiError(detail, response.status);
   }
-  const blob = await response.blob();
+  let blob: Blob;
+  try {
+    blob = await response.blob();
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    throw new ApiError("The ebook download was interrupted.", 502);
+  } finally {
+    window.clearTimeout(timer);
+  }
   return new File([blob], filename, {
     type: blob.type || "application/octet-stream",
   });
