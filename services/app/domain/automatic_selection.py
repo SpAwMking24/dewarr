@@ -20,6 +20,7 @@ from app.db.models import (
     AcquisitionIntent,
     AcquisitionReservation,
     AcquisitionTarget,
+    Integration,
     Operation,
     ProviderObject,
     SourceArtifact,
@@ -177,7 +178,7 @@ async def matching_route(db, body, protocol):
     if primary and client_protocol(primary.kind) == wanted:
         return {
             "downloader": primary,
-            "generation": body.downloader_generation,
+            "generation": primary.credential_generation,
             "destination_id": body.destination_id,
             "destination_revision": body.destination_revision,
             "approval_key": "dispatch_approval",
@@ -197,6 +198,22 @@ async def matching_route(db, body, protocol):
             "approval_key": "alternate_dispatch_approval",
         }
     if primary is None and alternate is None:
+        # The saved client was deleted or re-added: use the connected one for this protocol.
+        for candidate in await db.scalars(
+            select(Integration).where(
+                Integration.deleted_at.is_(None),
+                Integration.enabled.is_(True),
+                Integration.status == "connected",
+            )
+        ):
+            if client_protocol(candidate.kind) == wanted:
+                return {
+                    "downloader": candidate,
+                    "generation": candidate.credential_generation,
+                    "destination_id": body.destination_id,
+                    "destination_revision": body.destination_revision,
+                    "approval_key": "dispatch_approval",
+                }
         return {
             "downloader": None,
             "generation": body.downloader_generation,
@@ -375,7 +392,10 @@ async def begin(
         await repair(db, active)
         if active.status in {"queued", "running"}:
             if active.payload["command"] != command:
-                raise HTTPException(409, "Cancel the active selection before changing its options")
+                # A newer choice replaces the stale one instead of blocking it.
+                finish(active, "cancelled", "Replaced by a newer choice; no download was started")
+                active = None
+        if active is not None and active.status in {"queued", "running"}:
             raise HTTPException(
                 409, "A selection is already running for this target; open its current status"
             )

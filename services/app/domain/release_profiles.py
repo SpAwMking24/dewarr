@@ -575,6 +575,20 @@ def _names_title_and_author(raw, expected, work_authors) -> bool:
     )
 
 
+def _credits_other_author(raw, work) -> bool:
+    """True when the name ends in " - Firstname Lastname" that is not a catalogue author."""
+    text = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", raw).strip()
+    head, separator, tail = text.rpartition(" - ")
+    if not separator or not head.strip():
+        return False
+    words = tail.replace(",", " ").split()
+    return (
+        2 <= len(words) <= 3
+        and all(w[:1].isupper() and w.isalpha() and w.lower() not in _NOISE_WORDS for w in words)
+        and normalized(tail) not in {normalized(a) for a in work["authors"]}
+    )
+
+
 def assess_release(release, work, preferences, medium="all"):
     release = catalog_language_release(release, work)
     raw, part, dramatized = release_labels(getattr(release, "title", release.raw_title))
@@ -607,6 +621,14 @@ def assess_release(release, work, preferences, medium="all"):
     )
     if authors and work_authors and not authors & work_authors:
         identity = "unmatched"
+    elif not authors and work_authors and identity == "possible" and title_agrees:
+        # Unstructured names such as "Title - Author": a catalogue author in the
+        # name corroborates the book; a different credited person rules it out.
+        flat = normalized(re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", raw))
+        if any(a and a in flat for a in work_authors):
+            identity = "corroborated"
+        elif _credits_other_author(raw, work):
+            identity = "unmatched"
     blocked, review, explanation = [], [], []
     if part:
         # A part is not the whole book, even when its title matches.
