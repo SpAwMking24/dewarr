@@ -252,9 +252,7 @@ class ProwlarrClient:
                                     "Prowlarr returned an invalid magnet redirect.",
                                 )
                             return MagnetRedirect(location)
-                        return DownloadRedirect(
-                            str(redirect_url(str(response.url), location))
-                        )
+                        return DownloadRedirect(str(redirect_url(str(response.url), location)))
                     raise AdapterError(
                         FailureKind.UNSUPPORTED if binary else FailureKind.ROUTE,
                         "Prowlarr redirected the request.",

@@ -100,8 +100,7 @@ def agrees_with_request(work, release, facts, *, series=(), verified_titles=()):
     if facts.titles and not file_titles_agree:
         return False
     if any(
-        not (value and set(value) <= set(authors))
-        and not (credited_source and file_corroborated)
+        not (value and set(value) <= set(authors)) and not (credited_source and file_corroborated)
         for value in facts.authors
     ):
         return False

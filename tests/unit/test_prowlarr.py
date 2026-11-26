@@ -439,6 +439,7 @@ async def test_redirect_tries_only_prevalidated_addresses_on_connect_failure():
     assert lookups == [("indexer.test", None)]
     assert calls == ["2606:4700:4700::1111", "1.1.1.1"]
 
+
 @pytest.mark.parametrize(
     ("title", "category", "expected"),
     [

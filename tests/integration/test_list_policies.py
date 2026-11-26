@@ -148,9 +148,7 @@ async def test_future_only_activation_skips_backlog_and_new_addition_downloads_o
     assert (await activate(client, f, plan))["revision"] == saved["revision"]
 
 
-async def test_select_all_missing_backlog_is_frozen_and_activated(
-    client, database, policy_fixture
-):
+async def test_select_all_missing_backlog_is_frozen_and_activated(client, database, policy_fixture):
     f = policy_fixture
     await add(client, f)
 
@@ -165,21 +163,15 @@ async def test_select_all_missing_backlog_is_frozen_and_activated(
     current = await client.get(f"/api/requests/{request_id}")
     assert current.status_code == 200, current.text
     reason = current.json()["reasons"][0]
-    withdrawn = await client.delete(
-        f"/api/requests/{request_id}/reasons/{reason['id']}"
-    )
+    withdrawn = await client.delete(f"/api/requests/{request_id}/reasons/{reason['id']}")
     assert withdrawn.status_code == 200, withdrawn.text
 
-    plan = await preview(
-        client, f, select_all_missing=True, expected_content_revision=revision
-    )
+    plan = await preview(client, f, select_all_missing=True, expected_content_revision=revision)
     assert plan["selected"] == 1
 
     saved = await activate(client, f, plan)
 
-    selected = await client.get(
-        f"/api/lists/{f['list']}/acquisition/selected?offset=0&limit=25"
-    )
+    selected = await client.get(f"/api/lists/{f['list']}/acquisition/selected?offset=0&limit=25")
     assert selected.status_code == 200, selected.text
     assert selected.json()["total"] == 1
     assert selected.json()["records"][0]["work_id"] == f["work"]

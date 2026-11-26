@@ -350,9 +350,7 @@ async def test_reviewed_collection_mapping_requires_independent_file_identity(mo
         ("The Empyrean T3: Fourth Wing", "3", False),
     ],
 )
-def test_linked_download_accepts_catalogued_t_series_prefix(
-    file_title, position, expected
-):
+def test_linked_download_accepts_catalogued_t_series_prefix(file_title, position, expected):
     from app.importing.linked_download import request_file_conflicts
 
     work = SimpleNamespace(
@@ -371,6 +369,7 @@ def test_linked_download_accepts_catalogued_t_series_prefix(
     assert agrees_with_request(work, release, facts, series=series) is expected
     conflicts = request_file_conflicts(work, release, facts, series=series)
     assert ("The files name a different book" not in conflicts) is expected
+
 
 @pytest.mark.parametrize(
     ("file_authors", "expected"),

@@ -587,8 +587,10 @@ async def run(identifier, source):
                     payload["sources"][source],
                     payload,
                     fetch_slskd,
-                    lambda releases: not source_queries.slskd_relevant(
-                        releases, payload["work"], payload.get("medium", "all")
+                    lambda releases: (
+                        not source_queries.slskd_relevant(
+                            releases, payload["work"], payload.get("medium", "all")
+                        )
                     ),
                 )
                 if not await update_unit(

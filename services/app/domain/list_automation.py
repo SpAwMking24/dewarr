@@ -497,13 +497,10 @@ async def run(identifier):
         now = datetime.now(UTC)
         records = await list_policies.members(db, user, policy.list_id)
         leaders = await list_monitoring.reconcile(db, policy, records, now)
-        base = (
-            select(ListAcquisitionBook)
-            .where(
-                ListAcquisitionBook.policy_id == policy.id,
-                ListAcquisitionBook.generation == policy.generation,
-                ListAcquisitionBook.id.in_(leaders),
-            )
+        base = select(ListAcquisitionBook).where(
+            ListAcquisitionBook.policy_id == policy.id,
+            ListAcquisitionBook.generation == policy.generation,
+            ListAcquisitionBook.id.in_(leaders),
         )
 
         # Finish an already-started book before opening another one.

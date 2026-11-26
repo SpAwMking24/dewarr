@@ -218,18 +218,14 @@ def test_identifier_does_not_override_contradictory_recording_evidence(changed):
         ([], True),
     ],
 )
-def test_embedded_author_subset_matches_catalogue_credit(
-    embedded_authors, expected_conflict
-):
+def test_embedded_author_subset_matches_catalogue_credit(embedded_authors, expected_conflict):
     facts, version, work = facts_and_version()
     work.authors = ["Alex Morgan", "Taylor Reed"]
     facts.authors = [embedded_authors] if embedded_authors else []
 
     candidate = candidate_evidence(facts, version, work, work, False)
 
-    assert (
-        "Embedded authors are missing or differ" in candidate.conflicts
-    ) is expected_conflict
+    assert ("Embedded authors are missing or differ" in candidate.conflicts) is expected_conflict
 
 
 def test_edition_labels_are_not_a_different_title():

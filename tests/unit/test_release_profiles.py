@@ -812,3 +812,26 @@ def test_ebook_only_formats_are_blocked_for_an_audiobook_search():
     assert "The release is for a different medium" in audio.blocked
     ebook = assess_release(candidate, WORK, ReleasePreferences(), "ebook")
     assert "The release is for a different medium" not in ebook.blocked
+
+
+def test_title_and_author_named_in_release_name_are_corroborated():
+    from app.adapters.prowlarr import ProwlarrRelease
+
+    candidate = ProwlarrRelease(
+        source_id="fixture",
+        title="Clive Cussler & Graham Brown [Numa Files 16] - The rising sea",
+        raw_title="Clive Cussler & Graham Brown [Numa Files 16] - The rising sea",
+        authors=[],
+        medium="ebook",
+        protocol="nzb",
+        indexer_name="Fixture",
+        categories=[],
+        observed_at=datetime.now(UTC),
+        acquisition_supported=True,
+    )
+    work = {"title": "Rising Sea", "authors": ["Clive Cussler"]}
+    assert assess_release(candidate, work, ReleasePreferences(), "ebook").identity == "corroborated"
+    other = {"title": "Rising Sea", "authors": ["Someone Else"]}
+    assert (
+        assess_release(candidate, other, ReleasePreferences(), "ebook").identity != "corroborated"
+    )

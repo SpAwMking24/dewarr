@@ -542,6 +542,39 @@ def catalog_language_release(release, work):
     return release.model_copy(update={"language": language, "details": details})
 
 
+_NOISE_WORDS = {
+    "sample", "summary", "abook", "audiobook", "ebook", "part", "rar", "german", "unabridged",
+    "abridged", "mp3", "m4b", "epub", "pdf", "mobi", "azw3", "retail", "the", "and", "a", "by",
+}  # fmt: skip
+
+
+def _names_title_and_author(raw, expected, work_authors) -> bool:
+    """True when a release name is only the title, catalogue authors and a series label."""
+    if not expected or not work_authors or not (len(expected.split()) >= 2 or len(expected) >= 8):
+        return False
+    labels = re.findall(r"\[([^\]]*)\]", raw)
+    if any(not re.fullmatch(r"[A-Za-z ]+ \d+", label.strip()) for label in labels):
+        return False
+    text = re.sub(r"\[[^\]]*\]", " ", raw)
+    if any(mark in text for mark in "[]()"):
+        return False
+    flat = normalized(text)
+    if expected not in flat or not any(a and a in flat for a in work_authors):
+        return False
+    rest = flat.replace(expected, " ")
+    for author in work_authors:
+        rest = rest.replace(author, " ")
+    leftovers = [w for w in rest.split() if w not in {"and", "the", "by"}]
+    if not leftovers:
+        return True
+    # Extra words are only tolerated as a named co-author ("A & B - Title").
+    return (
+        "&" in text
+        and len(leftovers) <= 3
+        and all(w.isalpha() and w not in _NOISE_WORDS and len(w) >= 3 for w in leftovers)
+    )
+
+
 def assess_release(release, work, preferences, medium="all"):
     release = catalog_language_release(release, work)
     raw, part, dramatized = release_labels(getattr(release, "title", release.raw_title))
@@ -557,9 +590,17 @@ def assess_release(release, work, preferences, medium="all"):
     known = set().union(*(identifier_values(value) for value in work.get("identifiers") or []))
     same_edition = bool(known & identifier_values(getattr(release, "isbn", None)))
     parsed_authors = indexer_title_authors(release, work)
+    # A release name that spells out both the full title and a catalogue author
+    # (such as "Clive Cussler & Graham Brown [Series 16] - The Rising Sea") is as good
+    # as a parsed match; downloaded files are still inspected before import.
+    named_in_title = _names_title_and_author(
+        getattr(release, "title", release.raw_title), expected, work_authors
+    )
     identity = (
         "corroborated"
-        if ((title_agrees or same_edition) and authors & work_authors) or parsed_authors
+        if ((title_agrees or same_edition) and authors & work_authors)
+        or parsed_authors
+        or named_in_title
         else "possible"
         if title_agrees or same_edition or (expected and expected in title)
         else "unmatched"

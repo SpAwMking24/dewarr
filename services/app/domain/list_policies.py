@@ -246,9 +246,7 @@ async def preview(db, user, list_id, body, key):
 
         for record in projected:
             if record["work_id"] in selected_ids:
-                series_plans[record["work_id"]] = await plan(
-                    db, user, UUID(record["work_id"])
-                )
+                series_plans[record["work_id"]] = await plan(db, user, UUID(record["work_id"]))
 
     for record in projected:
         record["selected"] = record["work_id"] in selected_ids
@@ -383,9 +381,7 @@ async def activate(db, user, operation):
     if not selected_ids <= {record["work_id"] for record in records}:
         raise HTTPException(409, "Reviewed backlog selection is no longer in this list")
 
-    leaders = await reconcile(
-        db, policy, records, now, activation=True, selected=selected_ids
-    )
+    leaders = await reconcile(db, policy, records, now, activation=True, selected=selected_ids)
     for book in await db.scalars(
         select(ListAcquisitionBook).where(ListAcquisitionBook.id.in_(leaders))
     ):

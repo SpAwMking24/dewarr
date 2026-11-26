@@ -40,7 +40,7 @@ def _write_minimal_epub(path) -> bytes:
             "<manifest>"
             '<item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'
             "</manifest>"
-            "<spine><itemref idref=\"ch1\"/></spine>"
+            '<spine><itemref idref="ch1"/></spine>'
             "</package>",
         )
         archive.writestr(

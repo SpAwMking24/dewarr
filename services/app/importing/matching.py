@@ -137,8 +137,7 @@ def candidate_evidence(facts, version, origin, work, needs_review, *, request_ma
         if entry.authors
     }
     if facts.authors and all(
-        names and any(set(names) <= set(credit) for credit in credits)
-        for names in facts.authors
+        names and any(set(names) <= set(credit) for credit in credits) for names in facts.authors
     ):
         reasons.append("Embedded authors agree")
     else:

@@ -98,9 +98,7 @@ async def test_magnet_without_selected_downloader_fails_without_guessing(monkeyp
     monkeypatch.setattr(resolver, "resolve_metadata", resolve_metadata)
 
     with pytest.raises(HTTPException) as caught:
-        await resolver.resolve_prowlarr(
-            uuid4(), item, "indexer-reference", expected_generation=7
-        )
+        await resolver.resolve_prowlarr(uuid4(), item, "indexer-reference", expected_generation=7)
 
     assert caught.value.status_code == 422
     assert "Select a qBittorrent downloader" in caught.value.detail

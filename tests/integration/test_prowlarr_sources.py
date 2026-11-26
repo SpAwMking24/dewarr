@@ -100,9 +100,7 @@ async def search(client, **changes):
 
 async def resolve(client, result_id, body=None):
     options = {"json": body} if body is not None else {}
-    return await client.post(
-        f"/api/sources/prowlarr/results/{result_id}/artifact", **options
-    )
+    return await client.post(f"/api/sources/prowlarr/results/{result_id}/artifact", **options)
 
 
 @pytest.mark.parametrize("redirect", [None, "https://indexer.test/file?apikey=secret-indexer"])

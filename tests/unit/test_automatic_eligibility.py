@@ -87,8 +87,7 @@ def test_incomplete_metadata_toggle_does_not_allow_known_author_or_medium_mismat
     wrong_author = release().model_copy(update={"authors": ["Another writer"]})
     wrong_medium = release().model_copy(update={"medium": "ebook"})
     assert any(
-        "corroborate" in reason
-        for reason in eligibility(wrong_author, WORK, RULE, preferences)
+        "corroborate" in reason for reason in eligibility(wrong_author, WORK, RULE, preferences)
     )
     assert any(
         "different medium" in reason.lower()

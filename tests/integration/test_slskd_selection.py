@@ -342,8 +342,7 @@ async def test_recovery_candidate_ranking_excludes_only_the_refused_soulseek_fol
         )
 
         decisions = {
-            (row.source_key, release.source_id): problems
-            for _, row, release, problems in ranked
+            (row.source_key, release.source_id): problems for _, row, release, problems in ranked
         }
 
         refused_key = ("slskd", refused_release.source_id)
@@ -354,9 +353,7 @@ async def test_recovery_candidate_ranking_excludes_only_the_refused_soulseek_fol
         assert alternate_key in decisions
         assert mam_key in decisions
 
-        refusal_reason = (
-            "This Soulseek peer folder refused the file during the previous attempt"
-        )
+        refusal_reason = "This Soulseek peer folder refused the file during the previous attempt"
 
         assert refusal_reason in decisions[refused_key]
         assert refusal_reason not in decisions[alternate_key]
