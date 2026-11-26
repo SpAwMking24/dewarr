@@ -7,6 +7,7 @@ import {
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import ListPolicy from "../pages/ListPolicy";
+import { FollowFilterEditor } from "./FollowFilters";
 import { Check, Plus } from "lucide-react";
 import { api, ApiError, result } from "../api/client";
 import type { components } from "../api/schema";
@@ -76,60 +77,68 @@ export default function FollowCatalog({
   const error = follow.error || query.error;
   const href = existing ? "/following?list=" + existing.list_id : "/following";
   return (
-    <span className="catalog-follow-control">
-      {existing ? (
-        <Link
-          ref={followedLink}
-          className="reader-action-link"
-          to={href}
-          aria-label={"Manage following " + name}
-        >
-          <Check size={14} aria-hidden="true" /> Following
-          {!existing.subscription.enabled ? " · Updates paused" : ""}
-        </Link>
-      ) : null}
-      {existing ? null : (
-        <button
-          type="button"
-          className="primary"
-          disabled={query.isPending || !!query.error || saving}
-          onClick={() => follow.mutate(false)}
-        >
-          <Plus size={14} aria-hidden="true" />
-          {saving
-            ? "Following…"
-            : kind === "author"
-              ? "Follow author"
-              : "Follow future additions"}
-        </button>
-      )}
-      {downloadAll && kind === "author" ? (
-        <DownloadAllChoice
-          name={name}
-          disabled={query.isPending || !!query.error || saving}
+    <>
+      <span className="catalog-follow-control">
+        {existing ? (
+          <Link
+            ref={followedLink}
+            className="reader-action-link"
+            to={href}
+            aria-label={"Manage following " + name}
+          >
+            <Check size={14} aria-hidden="true" /> Following
+            {!existing.subscription.enabled ? " · Updates paused" : ""}
+          </Link>
+        ) : null}
+        {existing ? null : (
+          <button
+            type="button"
+            className="primary"
+            disabled={query.isPending || !!query.error || saving}
+            onClick={() => follow.mutate(false)}
+          >
+            <Plus size={14} aria-hidden="true" />
+            {saving
+              ? "Following…"
+              : kind === "author"
+                ? "Follow author"
+                : "Follow future additions"}
+          </button>
+        )}
+        {downloadAll && kind === "author" ? (
+          <DownloadAllChoice
+            name={name}
+            disabled={query.isPending || !!query.error || saving}
+            follow={existing}
+            create={() => follow.mutateAsync(false)}
+          />
+        ) : null}
+        {follow.isSuccess && existing && (
+          <span className="follow-feedback" role="status">
+            Following {name}. <Link to={href}>View follow</Link>
+          </span>
+        )}
+        {error && (
+          <span className="follow-feedback" role="alert">
+            {error.message}{" "}
+            {error instanceof ApiError && error.status === 409 && !existing ? (
+              <Link to="/metadata">Connection settings</Link>
+            ) : null}
+            {query.error && (
+              <button type="button" onClick={() => query.refetch()}>
+                Retry follow status
+              </button>
+            )}
+          </span>
+        )}
+      </span>
+      {downloadAll && existing && kind === "author" ? (
+        <FollowFilterEditor
+          key={existing.list_id + ":" + existing.subscription.generation}
           follow={existing}
-          create={() => follow.mutateAsync(false)}
         />
       ) : null}
-      {follow.isSuccess && existing && (
-        <span className="follow-feedback" role="status">
-          Following {name}. <Link to={href}>View follow</Link>
-        </span>
-      )}
-      {error && (
-        <span className="follow-feedback" role="alert">
-          {error.message}{" "}
-          {error instanceof ApiError && error.status === 409 && !existing ? (
-            <Link to="/metadata">Connection settings</Link>
-          ) : null}
-          {query.error && (
-            <button type="button" onClick={() => query.refetch()}>
-              Retry follow status
-            </button>
-          )}
-        </span>
-      )}
-    </span>
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import type { components } from "../api/schema";
 import { Loading, Notice } from "../components";
 import { randomUUID } from "../randomUUID";
 import ListPolicy from "./ListPolicy";
+import { FilterFields } from "../components/FollowFilters";
 import ActivityRequests from "./ActivityRequests";
 import type { Auth } from "../api/client";
 
@@ -19,54 +20,6 @@ const defaults: Filters = {
   coauthored: true,
   language: null,
 };
-
-function FilterFields({
-  value,
-  change,
-}: {
-  value: Filters;
-  change: (value: Filters) => void;
-}) {
-  const labels = {
-    compilations: "Include compilations",
-    box_sets: "Include box sets",
-    anthologies: "Include anthologies",
-    non_main_series: "Include non-main-series titles",
-    coauthored: "Include co-authored books",
-  } as const;
-  return (
-    <fieldset>
-      <legend>Books to include</legend>
-      {Object.entries(labels).map(([key, label]) => (
-        <label className="check-label" key={key}>
-          <input
-            type="checkbox"
-            checked={value[key as keyof typeof labels] ?? false}
-            onChange={(e) => change({ ...value, [key]: e.target.checked })}
-          />
-          {label}
-        </label>
-      ))}
-      <label>
-        Edition language (optional)
-        <input
-          value={value.language || ""}
-          placeholder="en"
-          pattern="[a-z]{2}"
-          maxLength={2}
-          onChange={(e) =>
-            change({ ...value, language: e.target.value.toLowerCase() || null })
-          }
-        />
-      </label>
-      <p className="muted">
-        Use a two-letter language code. Books without a matching edition are
-        excluded. Collection filters use Hardcover series flags, titles and
-        tags.
-      </p>
-    </fieldset>
-  );
-}
 
 export default function FollowSettings() {
   const [params, setParams] = useSearchParams();
@@ -170,7 +123,7 @@ function FollowEditor({ follow }: { follow: Follow }) {
     enabled: false,
   });
   const admin = session.data?.user.role === "admin";
-  const [filters, setFilters] = useState(follow.filters);
+  const filters = follow.filters;
   const [offset, setOffset] = useState(0);
   const path = { list_id: follow.list_id };
   const changed = () => {
@@ -295,22 +248,6 @@ function FollowEditor({ follow }: { follow: Follow }) {
         requested books stay requested.
       </p>
       <Link to="/settings#notifications">Notification settings</Link>
-      <details>
-        <summary>Edit follow filters</summary>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            edit.mutate(follow.subscription.enabled);
-          }}
-        >
-          <FilterFields value={filters} change={setFilters} />
-          <p>
-            Saving pauses acquisition until you review a fresh policy preview.
-            Exclusions are preserved.
-          </p>
-          <button disabled={edit.isPending}>Save filters and refresh</button>
-        </form>
-      </details>
       {downloadAll && ready ? (
         <ListPolicy
           key={`${follow.list_id}:${follow.subscription.last_success_at}`}

@@ -350,9 +350,6 @@ test("author follow verifies catalog, defaults to future only, and keeps exclusi
     await expect(
       downloadAll.getByRole("button", { name: label, exact: true }),
     ).toBeVisible();
-  await page
-    .getByRole("link", { name: "Manage following Ursula K. Le Guin" })
-    .click();
   await page.getByText("Edit follow filters", { exact: true }).click();
   await expect(
     page.getByRole("checkbox", { name: "Include compilations" }),
@@ -368,6 +365,10 @@ test("author follow verifies catalog, defaults to future only, and keeps exclusi
     path: testInfo.outputPath("following-desktop.png"),
     fullPage: true,
   });
+  await page
+    .getByRole("link", { name: "Manage following Ursula K. Le Guin" })
+    .click();
+  await expect(page.getByText("Edit follow filters")).toHaveCount(0);
   await page.getByRole("button", { name: "Pause follow", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Resume follow" }),
