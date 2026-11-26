@@ -15,7 +15,7 @@ import anyio.to_thread
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.api.dependencies import CurrentUser, Database
 from app.api.reader import (
@@ -28,6 +28,7 @@ from app.api.reader import (
 from app.db.models import (
     AssetContains,
     ImportDestination,
+    ImportEntry,
     Integration,
     Library,
     LibraryAsset,
@@ -115,6 +116,57 @@ def _parse_progress(row: ReadingProgress | None) -> ReadingProgressView | None:
     return _progress_view(row)
 
 
+async def _recorded_files(db, asset: LibraryAsset) -> list[dict]:
+    """Use the exact paths Dewarr recorded when it published this audiobook."""
+    clauses = [ImportEntry.asset_id == asset.id]
+    if asset.version_id:
+        clauses.append(ImportEntry.version_id == asset.version_id)
+    entries = await db.scalars(
+        select(ImportEntry)
+        .where(
+            or_(*clauses),
+            ImportEntry.published_at.is_not(None),
+            ImportEntry.specification.is_not(None),
+        )
+        .order_by(ImportEntry.asset_id.is_(None), ImportEntry.published_at.desc())
+    )
+    for entry in entries:
+        spec = entry.specification or {}
+        root, folder = spec.get("destination_root"), spec.get("folder")
+        if not root or not folder:
+            continue
+        conversion = spec.get("conversion") or {}
+        names = (
+            [conversion["output_name"]]
+            if conversion.get("output_name")
+            else [f["name"] for f in spec.get("files") or [] if isinstance(f, dict)]
+        )
+        order = (entry.expected_metadata or {}).get("audio_order") or []
+        if order:
+            rank = {PurePosixPath(path).name: i for i, path in enumerate(order)}
+            names.sort(key=lambda n: rank.get(n, len(rank)))
+        else:
+            names.sort(key=_natural)
+        found = []
+        for name in names:
+            fmt = PurePosixPath(name).suffix.lstrip(".").lower()
+            if fmt not in AUDIO_FORMATS:
+                continue
+            rel = f"{folder}/{name}"
+            found.append(
+                {
+                    "path": f"{root}/{rel}",
+                    "direct": (str(root), rel),
+                    "format": fmt,
+                    "filename": name,
+                    "size": None,
+                }
+            )
+        if found:
+            return found
+    return []
+
+
 async def _load_audio_asset(db, user, asset_id: UUID):
     row = (
         await db.execute(
@@ -134,7 +186,7 @@ async def _load_audio_asset(db, user, asset_id: UUID):
     asset, library, _ = row
     if asset.medium != "audio" or asset.state == "missing-confirmed":
         raise HTTPException(404, "This library item is not an available audiobook")
-    files = _audio_files(asset)
+    files = await _recorded_files(db, asset) or _audio_files(asset)
     if not files:
         raise HTTPException(404, "No playable audio file found for this item")
     return asset, library, files
@@ -233,7 +285,12 @@ def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
     return best[2], os.path.normpath(best[3])
 
 
-async def _open_audio(db, library_id: UUID, path: str):
+async def _open_audio(db, library_id: UUID, path: str, direct=None):
+    if direct:
+        try:
+            return _open_candidate(*direct)
+        except (OSError, ValueError, HTTPException):
+            pass
     candidates = await _local_candidates(db, library_id, path)
     for root_path, rel in candidates:
         try:
@@ -300,7 +357,7 @@ async def _view(db, user, asset, library, files, work) -> ListenBookView:
     tracks = []
     for index, info in enumerate(files):
         duration, chapters = None, []
-        opened = await _open_audio(db, library.id, info["path"])
+        opened = await _open_audio(db, library.id, info["path"], info.get("direct"))
         if opened:
             fd, size, absolute = opened
             os.close(fd)
@@ -400,7 +457,7 @@ async def listen_track(
     if index < 0 or index >= len(files):
         raise HTTPException(404, "Track not found")
     info = files[index]
-    opened = await _open_audio(db, library.id, info["path"])
+    opened = await _open_audio(db, library.id, info["path"], info.get("direct"))
     if not opened:
         raise HTTPException(
             404,

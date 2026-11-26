@@ -102,3 +102,31 @@ def test_search_matches_renamed_folder_and_file(tmp_path):
         "/data/media/audiobooks/Elly Griffiths/A Dying Fall (2012)/DYING FALL .mp3",
     )
     assert found == (str(tmp_path), "Elly Griffiths/2012 - A Dying Fall/A Dying Fall.mp3")
+
+
+def test_recorded_publication_paths_are_used_first():
+    import asyncio
+    from types import SimpleNamespace
+
+    from services.app.api import listen
+
+    entry = SimpleNamespace(
+        specification={
+            "destination_root": "/data/media/audiobooks",
+            "folder": "Elly Griffiths/2012 - A Dying Fall",
+            "files": [{"name": "02 - B.mp3"}, {"name": "01 - A.mp3"}, {"name": "cover.jpg"}],
+        },
+        expected_metadata={},
+    )
+
+    class Db:
+        async def scalars(self, _query):
+            return [entry]
+
+    asset = SimpleNamespace(id="a", version_id="v")
+    files = asyncio.run(listen._recorded_files(Db(), asset))
+    assert [f["filename"] for f in files] == ["01 - A.mp3", "02 - B.mp3"]
+    assert files[0]["direct"] == (
+        "/data/media/audiobooks",
+        "Elly Griffiths/2012 - A Dying Fall/01 - A.mp3",
+    )
