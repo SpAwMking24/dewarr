@@ -76,6 +76,8 @@ async def abandon_downloads(db, condition):
     )
     message = "Cancelled because its download connection was removed"
     for attempt in attempts:
+        # The connection is going away, so Dewarr stops tracking any transfer it holds.
+        attempt.external_may_exist = False
         attempt.state, attempt.message = "cancelled", message
         selections = {attempt.selection_id: None}
         for item in await download_memberships.for_attempt(db, attempt.id):

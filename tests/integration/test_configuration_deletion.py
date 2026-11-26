@@ -394,6 +394,7 @@ async def test_forced_delete_cancels_unfinished_downloads(
             operation_id=operation.id,
             state="downloading",
             endpoint_key="b" * 64,
+            external_may_exist=True,
         )
         db.add(attempt)
         await db.flush()
