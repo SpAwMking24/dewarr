@@ -343,13 +343,14 @@ test("author follow verifies catalog, defaults to future only, and keeps exclusi
     .getByRole("button", { name: "Follow author", exact: true })
     .click();
   await expect(page).toHaveURL(/authors\/hardcover\/9$/);
-  const downloadAll = page.getByRole("group", {
+  const downloadAll = page.locator(".author-books-heading").getByRole("group", {
     name: "Download all books by Ursula K. Le Guin",
   });
   for (const label of ["Ebooks", "Audiobooks", "Both"])
     await expect(
       downloadAll.getByRole("button", { name: label, exact: true }),
     ).toBeVisible();
+  const portraitBefore = await page.locator(".author-portrait").boundingBox();
   await page.getByText("Edit follow filters", { exact: true }).click();
   await expect(
     page.getByRole("checkbox", { name: "Include compilations" }),
@@ -360,36 +361,31 @@ test("author follow verifies catalog, defaults to future only, and keeps exclusi
   await expect(
     page.getByRole("checkbox", { name: "Include anthologies" }),
   ).not.toBeChecked();
+  const portraitAfter = await page.locator(".author-portrait").boundingBox();
+  expect(portraitAfter?.y).toBe(portraitBefore?.y);
 
   await page.screenshot({
     path: testInfo.outputPath("following-desktop.png"),
     fullPage: true,
   });
   await page
-    .getByRole("link", { name: "Manage following Ursula K. Le Guin" })
+    .getByRole("button", { name: "Unfollow Ursula K. Le Guin" })
     .click();
-  await expect(page.getByText("Edit follow filters")).toHaveCount(0);
-  await page.getByRole("button", { name: "Pause follow", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Resume follow" }),
+    page.getByRole("button", { name: "Follow author", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Unfollow", exact: true }).click();
+  await page.goto("/following?list=00000000-0000-0000-0000-000000000010");
   await expect(
-    page.getByText(
-      "Open an author or series page and choose Follow to get started.",
-    ),
-  ).toBeVisible();
+    page.getByRole("heading", { name: "Manage following" }),
+  ).toHaveCount(0);
 });
 
 test("Following is usable at a narrow viewport", async ({ page }, testInfo) => {
-  await fixture(page);
+  await fixture(page, true);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/following?kind=series&externalId=7&name=Earthsea");
+  await page.goto("/following");
   await expect(
-    page.getByRole("heading", { name: "Follow Earthsea" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Follow and preview catalog" }),
+    page.getByRole("heading", { name: "Following", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
@@ -450,7 +446,7 @@ test("Following shows library coverage, releases, and useful filtered books", as
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     author.getByRole("link", { name: "Manage Ursula K. Le Guin" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
@@ -480,7 +476,7 @@ for (const path of ["/books/work-one", "/discover/books/hardcover/42"]) {
       .getByRole("button", { name: "Follow author", exact: true })
       .click();
     await expect(
-      first.getByRole("link", { name: "Manage following Ursula K. Le Guin" }),
+      first.getByRole("button", { name: "Unfollow Ursula K. Le Guin" }),
     ).toBeVisible();
     await expect(
       second.getByRole("button", { name: "Follow author", exact: true }),
@@ -491,7 +487,7 @@ for (const path of ["/books/work-one", "/discover/books/hardcover/42"]) {
       .getByRole("link", { name: "Ursula K. Le Guin", exact: true })
       .click();
     await expect(
-      page.getByRole("link", { name: "Manage following Ursula K. Le Guin" }),
+      page.getByRole("button", { name: "Unfollow Ursula K. Le Guin" }),
     ).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -529,7 +525,7 @@ test("failed follow stays on the author page and can be retried", async ({
     .getByRole("button", { name: "Follow author", exact: true })
     .click();
   await expect(
-    page.getByRole("link", { name: "Manage following Ursula K. Le Guin" }),
+    page.getByRole("button", { name: "Unfollow Ursula K. Le Guin" }),
   ).toBeFocused();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

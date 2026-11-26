@@ -681,3 +681,30 @@ button.list-choice-new:hover:not(:disabled) {
   flex-direction: column;
   gap: 10px;
 }
+.download-all-bar button.download-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.download-all-bar button.download-all-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: var(--line);
+}
+.download-all-bar button.download-all-btn-both {
+  background: #163c33;
+  border-color: #356859;
+  color: #b1f4d9;
+}
+.download-all-bar button.download-all-btn-both:hover:not(:disabled) {
+  background: #1d4e42;
+  border-color: #468673;
+}

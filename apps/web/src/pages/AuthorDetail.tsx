@@ -10,7 +10,11 @@ import { BookCard, Loading, Notice } from "../components";
 import BookCover from "../components/BookCover";
 import DetailTabs from "../components/DetailTabs";
 
-import FollowCatalog from "../components/FollowCatalog";
+import FollowCatalog, {
+  DownloadAllChoice,
+  useFollowing,
+} from "../components/FollowCatalog";
+import { FollowFilterEditor } from "../components/FollowFilters";
 
 const tabs = [
   ["books", "Books"],
@@ -52,6 +56,10 @@ function AuthorContent({
     retry: false,
   });
   const author = query.data?.author;
+  const following = useFollowing();
+  const existingFollow = following.data?.find(
+    (f) => f.source_kind === "author" && f.external_id === externalId,
+  );
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [author?.external_id]);
@@ -104,17 +112,30 @@ function AuthorContent({
             Explore the books and the person behind them.
           </p>
           {author.bio && <p className="entity-bio-preview">{author.bio}</p>}
-          {author.bio && (
-            <Link className="reader-action-link" to="?tab=about">
-              Read biography →
-            </Link>
+          {(author.bio || canEdit) && (
+            <div className="entity-hero-actions">
+              {author.bio && (
+                <Link className="reader-action-link" to="?tab=about">
+                  Read biography →
+                </Link>
+              )}
+              {canEdit && (
+                <FollowCatalog
+                  kind="author"
+                  externalId={externalId}
+                  name={author.name}
+                />
+              )}
+            </div>
           )}
-          {canEdit && (
-            <FollowCatalog
-              downloadAll
-              kind="author"
-              externalId={externalId}
-              name={author.name}
+          {canEdit && existingFollow && (
+            <FollowFilterEditor
+              key={
+                existingFollow.list_id +
+                ":" +
+                existingFollow.subscription.generation
+              }
+              follow={existingFollow}
             />
           )}
           <div className="reader-outbound">
@@ -150,9 +171,14 @@ function AuthorContent({
           </section>
         ) : (
           <section className="book-tab-section">
-            <div className="book-tab-heading">
-              <h2>Books by {author.name}</h2>
-              <span className="muted">Publication order</span>
+            <div className="book-tab-heading author-books-heading">
+              <div className="author-books-title">
+                <h2>Books by {author.name}</h2>
+                <span className="muted">Publication order</span>
+              </div>
+              {canEdit && (
+                <DownloadAllChoice externalId={externalId} name={author.name} />
+              )}
             </div>
             <p className="muted">
               Explore a title for editions, reviews, and library availability.

@@ -2,9 +2,100 @@
 .entity-hero {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 40px;
   padding: 20px 0 36px;
+}
+.entity-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.entity-hero-copy .follow-filter-editor {
+  margin-top: 12px;
+}
+.entity-hero-copy .follow-filter-editor summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+.entity-hero-copy .follow-filter-editor summary:hover {
+  color: var(--text);
+}
+.author-books-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 18px;
+}
+.author-books-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.download-all-bar {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.download-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.download-all-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.download-all-bar .download-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.download-all-bar .download-all-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: var(--line);
+}
+.download-all-bar .download-all-btn-both {
+  background: #163c33;
+  border-color: #356859;
+  color: #b1f4d9;
+}
+.download-all-bar .download-all-btn-both:hover:not(:disabled) {
+  background: #1d4e42;
+  border-color: #468673;
+}
+.download-all-status {
+  padding: 4px 8px 4px 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 .entity-hero-copy {
   min-width: 0;

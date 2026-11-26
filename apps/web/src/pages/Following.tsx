@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, Check, Search, UserRound } from "lucide-react";
@@ -7,7 +7,6 @@ import type { components } from "../api/schema";
 import { Loading, Notice } from "../components";
 import BookCover from "../components/BookCover";
 import DetailTabs from "../components/DetailTabs";
-const FollowSettings = lazy(() => import("./FollowSettings"));
 
 type Summary = components["schemas"]["FollowSummary"];
 type Book = components["schemas"]["FollowBook"];
@@ -226,13 +225,6 @@ function AuthorRow({ follow }: { follow: Summary }) {
               <span className="follow-state">
                 <Check size={13} aria-hidden="true" /> Following
               </span>
-              <Link
-                className="reader-action-link"
-                to={"/following?list=" + follow.list_id}
-                aria-label={"Manage " + follow.name}
-              >
-                Manage
-              </Link>
             </div>
             {status && (
               <p className="follow-freshness">
@@ -645,13 +637,5 @@ function Overview() {
 }
 
 export default function Following() {
-  const [params] = useSearchParams();
-  return params.has("list") ||
-    (params.has("kind") && params.has("externalId")) ? (
-    <Suspense fallback={<Loading />}>
-      <FollowSettings />
-    </Suspense>
-  ) : (
-    <Overview />
-  );
+  return <Overview />;
 }
