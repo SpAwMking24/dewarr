@@ -394,6 +394,10 @@ class SlskdClient:
             )
         if response.status_code == 404:
             raise AdapterError(FailureKind.NOT_FOUND, "slskd could not find that peer or batch")
+        if response.status_code == 409 and path == "/searches":
+            raise AdapterError(
+                FailureKind.RATE_LIMIT, "slskd is already running this search", retry_after=5
+            )
         if response.status_code == 409:
             raise AdapterError(FailureKind.UNCERTAIN, "slskd already has this download batch")
         if response.status_code == 429:
@@ -427,6 +431,17 @@ class SlskdClient:
             raise AdapterError(FailureKind.UNSUPPORTED, "slskd did not report a download directory")
         return {"version": version_text(version), "download_root": downloads}
 
+    async def _clear_finished_searches(self, text: str) -> None:
+        """Drop completed leftovers of the same search so slskd accepts it again."""
+        try:
+            existing = await self.request("GET", "/searches")
+            for item in existing if isinstance(existing, list) else []:
+                done = "completed" in str(item.get("state", "")).lower() or item.get("isComplete")
+                if item.get("searchText") == text and done and item.get("id"):
+                    await self.request("DELETE", f"/searches/{quote(str(item['id']), safe='')}")
+        except AdapterError:
+            pass
+
     async def search(
         self,
         query: str,
@@ -437,17 +452,22 @@ class SlskdClient:
     ) -> list[SlskdRelease]:
         import asyncio
 
-        created = await self.request(
-            "POST",
-            "/searches",
-            json={
-                "searchText": query[:200],
-                "searchTimeout": SEARCH_TIMEOUT_MS,
-                "fileLimit": 10000,
-                "filterResponses": True,
-                "maximumPeerQueueLength": 1000,
-            },
-        )
+        body = {
+            "searchText": query[:200],
+            "searchTimeout": SEARCH_TIMEOUT_MS,
+            "fileLimit": 10000,
+            "filterResponses": True,
+            "maximumPeerQueueLength": 1000,
+        }
+        for attempt in range(4):
+            try:
+                created = await self.request("POST", "/searches", json=body)
+                break
+            except AdapterError as error:
+                if error.kind != FailureKind.RATE_LIMIT or attempt == 3:
+                    raise
+                await self._clear_finished_searches(body["searchText"])
+                await asyncio.sleep(5)
         search_id = str((created or {}).get("id") or "")
         if not search_id:
             raise AdapterError(FailureKind.PARSER, "slskd did not return a search id")

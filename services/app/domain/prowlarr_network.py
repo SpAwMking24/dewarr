@@ -21,7 +21,19 @@ REQUEST_INTERVAL = 1.0
 QUEUE_WAIT = 20
 
 
-async def prowlarr_call(
+async def prowlarr_call(user_id, operation, argument=None, **kwargs):
+    """Queue behind another in-flight Prowlarr request instead of failing the search."""
+    for attempt in range(10):
+        try:
+            return await _prowlarr_call_once(user_id, operation, argument, **kwargs)
+        except AdapterError as error:
+            busy = error.kind == FailureKind.RATE_LIMIT and "another request" in str(error)
+            if not busy or attempt == 9:
+                raise
+            await asyncio.sleep(2 + attempt * 0.5)
+
+
+async def _prowlarr_call_once(
     user_id, operation, argument=None, *, expected_generation=None, recovery_guard=None
 ):
     token = uuid4()

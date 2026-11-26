@@ -487,27 +487,6 @@ function Results({
             {source.name}: {source.message}
           </p>
         ))}
-      {!!data.sources.length && !data.items.length && (
-        <details className="source-coverage" open={data.items.length === 0}>
-          <summary>
-            Source coverage ·{" "}
-            {data.sources.some((source) => source.count === 0)
-              ? `${data.sources
-                  .filter((source) => source.count === 0)
-                  .map((source) => source.name)
-                  .join(", ")} returned no releases`
-              : `${data.sources.length} checked`}
-          </summary>
-          <ul>
-            {data.sources.map((source) => (
-              <li key={source.key}>
-                <strong>{source.name}</strong> · {source.state} · {source.count}{" "}
-                releases<p>{source.message}</p>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
       {!data.sources.length && (
         <p className="notice">
           Connect a download source in Settings to find releases.
