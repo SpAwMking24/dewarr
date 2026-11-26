@@ -69,3 +69,16 @@ def test_search_by_name_finds_relocated_file(tmp_path):
     found = listen._search_by_name([str(tmp_path)], "/nas/lib/Author/Book/a.mp3")
     assert found == (str(tmp_path), "Author/Book/a.mp3")
     assert listen._search_by_name([str(tmp_path)], "/x/missing.mp3") is None
+
+
+def test_search_tolerates_renamed_single_file(tmp_path):
+    from services.app.api import listen
+
+    folder = tmp_path / "Elly Griffiths" / "A Dying Fall (2012)"
+    folder.mkdir(parents=True)
+    (folder / "A Dying Fall.mp3").write_bytes(b"x")
+    found = listen._search_by_name(
+        [str(tmp_path)],
+        "/data/media/audiobooks/Elly Griffiths/A Dying Fall (2012)/DYING FALL .mp3",
+    )
+    assert found == (str(tmp_path), "Elly Griffiths/A Dying Fall (2012)/A Dying Fall.mp3")

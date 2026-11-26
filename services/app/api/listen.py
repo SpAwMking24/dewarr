@@ -182,29 +182,49 @@ def _open_candidate(root_path: str, rel: str):
     return dup_fd, os.fstat(dup_fd).st_size, str(Path(root_path) / rel)
 
 
+def _norm(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
 def _search_by_name(roots: list[str], path: str) -> tuple[str, str] | None:
-    """Last resort: find the file by name beneath a root, preferring the best folder match."""
+    """Last resort: find the file beneath a root, tolerating renames and spacing changes."""
     pure = PurePosixPath(path)
-    wanted = [p.lower() for p in pure.parent.parts if p not in {"/", ""}]
-    best: tuple[int, str, str] | None = None
+    wanted = [_norm(p) for p in pure.parent.parts if p not in {"/", ""}]
+    stem = _norm(pure.stem)
+    suffix = pure.suffix.lower()
+    best: tuple[int, int, str, str] | None = None
     seen = 0
     for root in dict.fromkeys(roots):
         for here, _dirs, names in os.walk(root, followlinks=False):
             seen += 1
             if seen > 20000:
                 break
-            if pure.name not in names:
-                continue
-            rel = os.path.relpath(os.path.join(here, pure.name), root)
-            have = [p.lower() for p in Path(rel).parent.parts]
-            score = 0
+            rel_dir = os.path.relpath(here, root)
+            have = [_norm(p) for p in Path(rel_dir).parts if p != "."]
+            folder = 0
             for a, b in zip(reversed(wanted), reversed(have), strict=False):
                 if a != b:
                     break
-                score += 1
-            if best is None or score > best[0]:
-                best = (score, root, rel)
-    return (best[1], best[2]) if best else None
+                folder += 1
+            audio = [
+                n for n in names if PurePosixPath(n).suffix.lower().lstrip(".") in AUDIO_FORMATS
+            ]
+            for name in audio:
+                name_score = 2 if name == pure.name else 0
+                if _norm(PurePosixPath(name).stem) == stem:
+                    name_score = max(name_score, 1)
+                if PurePosixPath(name).suffix.lower() == suffix and (
+                    name_score or (folder >= 2 and len(audio) == 1)
+                ):
+                    name_score = name_score or 0
+                elif not name_score:
+                    continue
+                key = (folder, name_score)
+                if best is None or key > best[:2]:
+                    best = (folder, name_score, root, os.path.join(rel_dir, name))
+    if best is None or (best[0] == 0 and best[1] == 0):
+        return None
+    return best[2], os.path.normpath(best[3])
 
 
 async def _open_audio(db, library_id: UUID, path: str):
