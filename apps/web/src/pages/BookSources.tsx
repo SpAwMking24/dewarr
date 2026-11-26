@@ -487,7 +487,7 @@ function Results({
             {source.name}: {source.message}
           </p>
         ))}
-      {!!data.sources.length && (
+      {!!data.sources.length && !data.items.length && (
         <details className="source-coverage" open={data.items.length === 0}>
           <summary>
             Source coverage ·{" "}
