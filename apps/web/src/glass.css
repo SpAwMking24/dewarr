@@ -1,0 +1,225 @@
+/* Modern glass theme: translucent tiles, soft curves, ambient glow.
+   Unlayered on purpose so it overrides the layered page styles. */
+:root {
+  --glass: rgba(255, 255, 255, 0.055);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+  --glass-line: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 10px 30px rgba(2, 6, 18, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --surface: rgba(255, 255, 255, 0.055);
+  --panel: rgba(24, 32, 52, 0.82);
+  --line: rgba(255, 255, 255, 0.11);
+  --radius: 20px;
+  --radius-sm: 14px;
+}
+html {
+  background: #070b16;
+}
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(60rem 40rem at 8% -5%, rgba(99, 102, 241, 0.28), transparent 60%),
+    radial-gradient(50rem 36rem at 95% 8%, rgba(20, 184, 166, 0.2), transparent 60%),
+    radial-gradient(48rem 40rem at 60% 105%, rgba(168, 85, 247, 0.18), transparent 60%),
+    #070b16;
+  background-attachment: fixed;
+}
+
+/* Surfaces */
+.panel,
+.request-row,
+.request-progress-card,
+.notice,
+.download-review,
+.discovery-section,
+.library-filters,
+.followed-list-card,
+.book-detail .panel,
+.list-refresh-menu,
+.application-release-dialog,
+dialog,
+[role="dialog"],
+details.panel,
+.recovery-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(22px) saturate(140%);
+}
+.request-row {
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  transition: transform 160ms, background 160ms, border-color 160ms;
+}
+.request-row:hover,
+.request-row:focus-within {
+  background: var(--glass-strong);
+  border-color: rgba(165, 180, 252, 0.35);
+}
+dialog,
+[role="dialog"],
+.list-refresh-menu {
+  background: rgba(18, 25, 43, 0.78);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  backdrop-filter: blur(30px) saturate(150%);
+}
+dialog::backdrop {
+  background: rgba(3, 6, 15, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Navigation */
+.sidebar {
+  background: rgba(10, 15, 30, 0.55);
+  border-right: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+}
+nav a {
+  border-radius: var(--radius-sm);
+  transition: background 150ms, color 150ms;
+}
+nav a:hover {
+  background: var(--glass-strong);
+}
+nav a.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(139, 92, 246, 0.22));
+  border: 1px solid rgba(165, 180, 252, 0.28);
+  color: #e0e7ff;
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.22);
+}
+.topbar {
+  background: rgba(10, 15, 30, 0.5);
+  border-bottom: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+.topbar .search {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+}
+.topbar .search input {
+  background: transparent;
+  border: 0;
+}
+.avatar {
+  background: linear-gradient(135deg, #6366f1, #14b8a6);
+}
+
+/* Controls */
+button {
+  border-radius: var(--radius-sm);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background 150ms, transform 120ms, box-shadow 150ms;
+}
+button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+button:active {
+  transform: scale(0.98);
+}
+button.primary {
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.38);
+}
+button.primary:hover {
+  background: linear-gradient(135deg, #7578f5, #8b4cf5);
+}
+input,
+select,
+textarea {
+  background: rgba(8, 12, 26, 0.55);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(165, 180, 252, 0.6);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+  outline: none;
+}
+
+/* Covers and tiles */
+.book-cover,
+.request-cover,
+.detail-cover {
+  border-radius: 16px;
+  border: 1px solid var(--glass-line);
+  box-shadow: 0 14px 30px rgba(2, 6, 18, 0.5);
+  overflow: hidden;
+}
+.book-card:hover .book-cover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(2, 6, 18, 0.6), 0 0 0 1px rgba(165, 180, 252, 0.35);
+}
+.book-card .book-cover {
+  transition: transform 200ms, box-shadow 200ms;
+}
+.nav-count,
+.request-status,
+.request-medium {
+  border-radius: 999px;
+}
+
+/* Tables */
+.source-table-scroll {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  overflow: auto;
+}
+.source-table th,
+.source-table td {
+  border-color: var(--glass-line);
+}
+
+/* Player */
+.listen-page {
+  background: transparent;
+}
+.listen-cover {
+  border-radius: 22px;
+}
+.listen-embedded {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+.listen-chapters {
+  background: rgba(15, 21, 38, 0.8);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+.listen-bar {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: 22px;
+  padding: 0.6rem;
+}
+.listen-controls .listen-play {
+  background: linear-gradient(135deg, #7db4ff, #8b8cf8);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.45);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  :root {
+    --glass: #1b2536;
+    --glass-strong: #263249;
+  }
+}
