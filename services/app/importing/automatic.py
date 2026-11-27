@@ -325,6 +325,68 @@ def selected_audio_reason(group, omitted_audio_paths):
     return "Audio files from this recording were omitted; review completeness before importing"
 
 
+def _group_names_title(group, files, titles):
+    """True when the group's embedded title, group title or file names contain a requested title."""
+    from app.domain.catalog_titles import display_title
+    from app.domain.identity import normalized
+    from app.domain.title_matching import compatible_title
+    from app.importing.linked_download import _contains_phrase
+
+    names = [group.title] if getattr(group, "title", None) else []
+    for member in group.files:
+        observed = files.get(member.path) or {}
+        embedded = (observed.get("metadata") or {}).get("title")
+        album = ((observed.get("technical") or {}).get("tags") or {}).get("album")
+        names.extend(value for value in (embedded, album) if value)
+        names.append(PurePosixPath(member.path).stem)
+    for title in titles:
+        wanted = normalized(display_title(title))
+        if not wanted:
+            continue
+        for name in names:
+            if compatible_title(name, title) or _contains_phrase(normalized(name), wanted):
+                return True
+    return False
+
+
+def relevant_groups(groups, files, titles):
+    """Drop other books and byte-identical duplicate copies from a multi-book download.
+
+    Nothing is dropped unless at least one group names the requested book, so a
+    download with no recognisable title still goes to the usual review.
+    Returns (kept, skipped).
+    """
+    if len(groups) < 2 or not titles:
+        return list(groups), []
+    named = [group for group in groups if _group_names_title(group, files, titles)]
+    if not named:
+        return list(groups), []
+    skipped = [
+        {"group_key": group.key, "reason": "Not the requested book; ignored automatically"}
+        for group in groups
+        if group not in named
+    ]
+    kept, seen = [], {}
+    for group in sorted(
+        named, key=lambda g: (min(len(PurePosixPath(f.path).stem) for f in g.files), g.key)
+    ):
+        content = (
+            group.medium,
+            tuple(sorted((files.get(f.path) or {}).get("sha256") or f.path for f in group.files)),
+        )
+        if content in seen:
+            skipped.append(
+                {
+                    "group_key": group.key,
+                    "reason": "Duplicate copy of a file already selected; ignored automatically",
+                }
+            )
+            continue
+        seen[content] = group.key
+        kept.append(group)
+    return kept, skipped
+
+
 def content_reason(group, files, release, *, omitted_audio_paths=None):
     """Bounded completeness heuristic, independent of the stricter identity match.
 
@@ -457,7 +519,10 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
     choices, held, unresolved, skipped = [], [], [], []
     release_rejection = False
     covered_by_existing = set()
-    for group in grouping.groups:
+    requested_titles = [(await canonical_work(db, work_id)).title for work_id in works]
+    groups, ignored = relevant_groups(grouping.groups, files, requested_titles)
+    skipped.extend(ignored)
+    for group in groups:
         match = await match_group(
             db, inspection.snapshot, grouping_revision, group, inspection=inspection
         )
@@ -479,7 +544,7 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         if (
             not reason
             and match.status != "matched"
-            and len(grouping.groups) == 1
+            and len(groups) == 1
             and len(members) == 1
             and not continuation
             and not match.truncated
