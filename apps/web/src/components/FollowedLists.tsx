@@ -14,6 +14,20 @@ import ListDownloads from "./ListDownloads";
 import ShelfPagination from "./ShelfPagination";
 import { randomUUID } from "../randomUUID";
 
+function isAuthorShelf(
+  name: string,
+  items: { authors?: string[] }[],
+): boolean {
+  const target = name.trim().toLowerCase();
+  if (!target || !items.length) return false;
+  const withAuthors = items.filter((w) => w.authors && w.authors.length > 0);
+  if (!withAuthors.length) return false;
+  const matches = withAuthors.filter((w) =>
+    w.authors!.some((a) => a.trim().toLowerCase() === target),
+  ).length;
+  return matches / withAuthors.length >= 0.7;
+}
+
 function emptyShelfCopy(
   provider: string | undefined,
   count: number,
@@ -182,6 +196,7 @@ export function PersonalRow({
     onSuccess: (value) => cache.setQueryData(["discovery-layout"], value),
   });
   const items = books.data?.items.slice(0, 100) || [];
+  const hideAuthor = isAuthorShelf(list.name, items);
   return (
     <section
       className="discovery-section"
@@ -275,7 +290,7 @@ export function PersonalRow({
         >
           {items.map((work) => (
             <li key={work.id}>
-              <EnrichedBookCard work={work} />
+              <EnrichedBookCard work={work} hideAuthor={hideAuthor} />
             </li>
           ))}
           {!books.hasNextPage && (
@@ -350,11 +365,17 @@ export function PersonalListPage({
             )}
           </header>
           <ul className="explore-books" aria-label={query.data.name}>
-            {query.data.items.map((work) => (
-              <li key={work.id}>
-                <EnrichedBookCard work={work} />
-              </li>
-            ))}
+            {(() => {
+              const hideAuthor = isAuthorShelf(
+                query.data.name,
+                query.data.items,
+              );
+              return query.data.items.map((work) => (
+                <li key={work.id}>
+                  <EnrichedBookCard work={work} hideAuthor={hideAuthor} />
+                </li>
+              ));
+            })()}
           </ul>
           <InfiniteScroll query={query} />
           {query.data.count === 0 && (

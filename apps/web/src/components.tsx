@@ -43,12 +43,14 @@ export function BookCard({
   cover,
   medium,
   rating,
+  hideAuthor = false,
 }: {
   work: Work;
   rating?: number | null;
   to?: string;
   cover?: string | null;
   medium?: "any" | "ebook" | "audio";
+  hideAuthor?: boolean;
 }) {
   return (
     <BookLink
@@ -64,9 +66,11 @@ export function BookCard({
         rating={rating}
       />
       <h3 title={work.title}>{work.title}</h3>
-      <p title={work.authors.join(", ")}>
-        {work.authors.join(", ") || "Author unknown"}
-      </p>
+      {!hideAuthor && (
+        <p title={work.authors.join(", ")}>
+          {work.authors.join(", ") || "Author unknown"}
+        </p>
+      )}
     </BookLink>
   );
 }

@@ -152,7 +152,7 @@ details.panel,
   color: var(--text);
 }
 
-/* Frameless shelves — no outer box or border */
+/* Frameless shelves — no outer box, border, or kicker eyebrow */
 .discovery-section,
 .explore .discovery-section {
   background: transparent;
@@ -160,6 +160,9 @@ details.panel,
   border-radius: 0;
   box-shadow: none;
   padding-inline: 0;
+}
+.discovery-section .explore-kicker {
+  display: none;
 }
 
 .request-row {

@@ -56,7 +56,13 @@ function resolve(workId: string, signal: AbortSignal) {
   });
 }
 
-export default function EnrichedBookCard({ work }: { work: Work }) {
+export default function EnrichedBookCard({
+  work,
+  hideAuthor = false,
+}: {
+  work: Work;
+  hideAuthor?: boolean;
+}) {
   const node = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const needsMetadata = work.provisional || !work.cover_url;
@@ -88,6 +94,7 @@ export default function EnrichedBookCard({ work }: { work: Work }) {
   return (
     <div ref={node}>
       <BookCard
+        hideAuthor={hideAuthor}
         work={
           book
             ? {

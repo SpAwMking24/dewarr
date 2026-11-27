@@ -191,6 +191,7 @@ function AuthorContent({
                     key={book.external_id}
                     work={work}
                     cover={book.cover_url}
+                    hideAuthor
                   />
                 ) : (
                   <BookLink

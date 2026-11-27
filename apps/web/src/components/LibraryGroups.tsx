@@ -199,7 +199,12 @@ export default function LibraryGroups({
           {group ? (
             <div className="book-grid">
               {books.data?.items.map((work) => (
-                <BookCard key={work.id} work={work} medium={medium} />
+                <BookCard
+                  key={work.id}
+                  work={work}
+                  medium={medium}
+                  hideAuthor={kind === "authors"}
+                />
               ))}
             </div>
           ) : (
