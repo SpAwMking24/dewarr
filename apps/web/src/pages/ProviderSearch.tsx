@@ -1,5 +1,4 @@
 import InfiniteScroll from "../components/InfiniteScroll";
-import BookLink from "../components/BookLink";
 import BookCover from "../components/BookCover";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,6 +14,7 @@ import type { components } from "../api/schema";
 import SearchFormatTabs, {
   rememberFormat,
 } from "../components/SearchFormatTabs";
+import SearchResultRow from "../components/SearchResultRow";
 import { BookCard, Empty, Loading, Notice } from "../components";
 
 type Book = components["schemas"]["BookData"];
@@ -247,7 +247,7 @@ export default function ProviderSearch({
             <span className="muted">{providerItems.length} books loaded</span>
           </div>
           {providerItems.length ? (
-            <div className="provider-results">
+            <div className={embedded ? "provider-results" : "result-list"}>
               {providerItems.map((book) => {
                 const known = knownWorks[book.external_id];
                 const content = (
@@ -258,7 +258,7 @@ export default function ProviderSearch({
                         cover={book.cover_url}
                         work={known}
                         providerBook={book}
-                        actions={!embedded}
+                        actions={false}
                       />
                     </div>
                     <span>
@@ -276,19 +276,18 @@ export default function ProviderSearch({
                   </>
                 );
                 return !embedded ? (
-                  <BookLink
-                    aria-label={`View ${book.title}`}
-                    className="provider-result"
+                  <SearchResultRow
                     key={`${book.provider}:${book.external_id}`}
+                    book={book}
+                    known={known}
+                    format={book.provider === "audible" ? "audio" : "ebook"}
                     to={
                       known && book.provider !== "audible"
                         ? `/books/${known.id}`
                         : `/discover/books/${book.provider}/${encodeURIComponent(book.external_id)}`
                     }
                     state={{ search: `/search?${params.toString()}` }}
-                  >
-                    {content}
-                  </BookLink>
+                  />
                 ) : (
                   <button
                     className="provider-result"
