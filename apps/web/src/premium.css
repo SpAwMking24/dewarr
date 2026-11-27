@@ -134,7 +134,6 @@ label small {
 .request-progress-card,
 .notice,
 .download-review,
-.discovery-section,
 .library-filters,
 .followed-list-card,
 .book-detail .panel,
@@ -151,6 +150,16 @@ details.panel,
   border-radius: var(--radius);
   box-shadow: var(--glass-shadow);
   color: var(--text);
+}
+
+/* Frameless shelves — no outer box or border */
+.discovery-section,
+.explore .discovery-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding-inline: 0;
 }
 
 .request-row {
