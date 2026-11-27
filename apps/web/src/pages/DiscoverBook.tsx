@@ -17,7 +17,7 @@ import RelatedCarousel from "../components/RelatedCarousel";
 import FollowRelease, { useReleaseWatch } from "../components/FollowRelease";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Headphones } from "lucide-react";
 import {
   Link,
   useLocation,
@@ -26,6 +26,9 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { api, result, type Work } from "../api/client";
+import { fetchWorkEbook } from "../api/reader";
+import { useListenableAudio } from "../hooks/useListenableAudio";
+import { useAudioPlayer } from "../components/AudioPlayerContext";
 import { Loading, Notice } from "../components";
 import BookReaderDetails, {
   useReaderDetails,
@@ -207,6 +210,15 @@ function BookPage({
           ? `https://www.audible.com/pd/${encodeURIComponent(externalId)}`
           : undefined);
   const editions = book?.editions || [];
+  const audioPlayer = useAudioPlayer();
+  const readableEbook = useQuery({
+    queryKey: ["work-ebook", work?.id],
+    enabled: !!work?.id && !!work?.availability.ebook,
+    queryFn: ({ signal }) => fetchWorkEbook(work!.id, signal),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const listenableAudio = useListenableAudio(work?.id, work?.availability.audio);
   const recording = provider === "audible";
   const shown = editions.filter(
     (edition) => format === "all" || edition.medium === format,
@@ -265,6 +277,39 @@ function BookPage({
             }
           >
             <div className="reader-actions nn-book-actions">
+              {listenableAudio.data && (
+                <button
+                  type="button"
+                  className="nn-pill-btn"
+                  onClick={() =>
+                    void audioPlayer.openBook(listenableAudio.data!.asset_id, {
+                      autoplay: true,
+                      openSheet: true,
+                    })
+                  }
+                >
+                  <Headphones size={16} aria-hidden="true" />
+                  {audioPlayer.book?.asset_id === listenableAudio.data.asset_id &&
+                  audioPlayer.playing
+                    ? "Now Playing"
+                    : listenableAudio.data.progress &&
+                        listenableAudio.data.progress.fraction > 0.01
+                      ? `Play Audio · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
+                      : "Play Audio"}
+                </button>
+              )}
+              {readableEbook.data && (
+                <Link
+                  className="nn-pill-btn"
+                  to={`/read/${readableEbook.data.asset_id}`}
+                >
+                  <BookOpen size={16} aria-hidden="true" />
+                  {readableEbook.data.progress &&
+                  readableEbook.data.progress.fraction > 0.01
+                    ? `Continue Reading · ${Math.round(readableEbook.data.progress.fraction * 100)}%`
+                    : "Start Reading"}
+                </Link>
+              )}
               {canEdit && (
                 <>
                   {recording ? (

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, result, type Auth } from "../api/client";
 
 export type MediaProgress = {
@@ -29,6 +29,7 @@ const pendingWorks = new Set<string>();
 const pendingTitles = new Set<string>();
 const listeners = new Set<() => void>();
 let pendingVersion = 0;
+let lastActiveSlots = new Set<string>();
 
 function notifyPending() {
   pendingVersion += 1;
@@ -78,6 +79,7 @@ export function useDownloadProgress(
   workId?: string | null,
   title?: string | null,
 ) {
+  const cache = useQueryClient();
   const { data: session } = useQuery<Auth | null>({
     queryKey: ["session"],
     enabled: false,
@@ -134,6 +136,32 @@ export function useDownloadProgress(
               [medium]: value,
             };
           }
+        }
+      }
+      const nextActiveSlots = new Set<string>();
+      for (const [wid, entry] of Object.entries(byWork)) {
+        if (entry.ebook != null) nextActiveSlots.add(`${wid}:ebook`);
+        if (entry.audio != null) nextActiveSlots.add(`${wid}:audio`);
+      }
+      let finishedAny = false;
+      for (const slot of lastActiveSlots) {
+        if (!nextActiveSlots.has(slot)) {
+          finishedAny = true;
+          const wid = slot.split(":")[0];
+          if (wid) setPendingDownload(false, wid, null);
+        }
+      }
+      lastActiveSlots = nextActiveSlots;
+      if (finishedAny) {
+        for (const qk of [
+          "work",
+          "provider-book",
+          "work-ebook",
+          "work-audio",
+          "catalog",
+          "works",
+        ]) {
+          void cache.invalidateQueries({ queryKey: [qk] });
         }
       }
       return { byWork, byTitle };
