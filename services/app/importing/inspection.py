@@ -249,7 +249,8 @@ def check_epub_encryption(document, package_path, manifest, spine_paths, archive
         method = data.find(f"{enc}EncryptionMethod")
         cipher = data.find(f"{enc}CipherData")
         if (
-            method.attrib.get("Algorithm") != "http://www.idpf.org/2008/embedding"
+            method.attrib.get("Algorithm")
+            not in {"http://www.idpf.org/2008/embedding", "http://ns.adobe.com/pdf/enc#RC"}
             or len(method)
             or len(cipher) != 1
             or cipher[0].tag != f"{enc}CipherReference"
@@ -261,7 +262,13 @@ def check_epub_encryption(document, package_path, manifest, spine_paths, archive
             raise InspectionError(reason)
         # CipherReference is relative to the container root, not encryption.xml or the OPF.
         path = epub_resource_path("root", href.path)
-        if path not in fonts or path in non_fonts or path not in names:
+        font_file = path in fonts or PurePosixPath(path).suffix.lower() in {
+            ".ttf",
+            ".otf",
+            ".woff",
+            ".woff2",
+        }
+        if not font_file or path in non_fonts or path not in names:
             raise InspectionError(reason)
         info = archive.getinfo(path)
         if info.file_size == 0 or info.flag_bits & 1:

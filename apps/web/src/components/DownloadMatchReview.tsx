@@ -127,16 +127,17 @@ export default function DownloadMatchReview({
     ) || [];
   // Several file groups: let the importer drop other books and duplicate copies
   // itself, once per download, instead of asking for a manual choice.
-  const autoRetried = useRef<string | null>(null);
   const multipleGroups =
     (unreadable.length > 0 ||
       (data?.grouping.content.groups.length || 0) > 1) &&
     download.can_retry;
   useEffect(() => {
-    if (multipleGroups && !retrying && autoRetried.current !== inspection.id) {
-      autoRetried.current = inspection.id;
-      retry();
-    }
+    // At most once per download for the whole browser session, so a failing
+    // re-check can never loop.
+    const key = `dewarr-auto-retry:${download.attempt_id ?? inspection.id}`;
+    if (!multipleGroups || retrying || sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    retry();
   }, [multipleGroups, retrying, inspection.id, retry]);
   const reason = unreadable.length
     ? unreadable[0].reason ||
