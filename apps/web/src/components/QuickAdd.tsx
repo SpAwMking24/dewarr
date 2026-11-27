@@ -6,6 +6,7 @@ import { api, result, type Auth } from "../api/client";
 import { canStartDownload } from "../permissions";
 import { Notice } from "../components";
 import { randomUUID } from "../randomUUID";
+import { setPendingDownload } from "../hooks/useDownloadProgress";
 import QuickAddStatus from "./QuickAddStatus";
 
 type Mode = "both" | "ebook" | "audio" | undefined;
@@ -28,6 +29,7 @@ function PreferencePrompt({ cover = false }: { cover?: boolean }) {
 }
 export default function QuickAdd({
   workId,
+  title,
   resolveWork,
   coverFormats,
   owned,
@@ -37,6 +39,7 @@ export default function QuickAdd({
   owned?: { ebook: boolean; audio: boolean };
   coverFormats?: { ebook: boolean; audio: boolean };
   workId?: string;
+  title?: string;
   resolveWork?: () => Promise<string>;
   actionLabel?: string;
 }) {
@@ -119,16 +122,30 @@ export default function QuickAdd({
     },
     onSuccess: () => {
       command.current.key = randomUUID();
-      for (const name of ["requests", "activity", "downloads"])
+      for (const name of ["requests", "activity", "downloads", "download-progress"])
         void cache.invalidateQueries({ queryKey: [name] });
     },
   });
   const busy =
     add.isPending ||
     !!(status.data && ["queued", "running"].includes(status.data.status));
+  const pendingOverlay =
+    busy ||
+    (status.data?.status === "completed" &&
+      !status.data.message.startsWith("Already available"));
+  useEffect(() => {
+    setPendingDownload(pendingOverlay, id, title);
+    return () => setPendingDownload(false, id, title);
+  }, [pendingOverlay, id, title]);
   useEffect(() => {
     if (status.data && !["queued", "running"].includes(status.data.status)) {
-      for (const name of ["requests", "activity", "downloads", "book-sources"])
+      for (const name of [
+        "requests",
+        "activity",
+        "downloads",
+        "download-progress",
+        "book-sources",
+      ])
         void cache.invalidateQueries({ queryKey: [name] });
     }
   }, [cache, status.data?.id, status.data?.status]);
@@ -327,13 +344,15 @@ export default function QuickAdd({
           )}
         </>
       )}
-      {(starting || status.data) && !missingPreference && (
-        <QuickAddStatus
-          receipt={status.data || undefined}
-          workId={id}
-          starting={starting}
-        />
-      )}
+      {!starting &&
+        status.data &&
+        ["held", "failed", "cancelled"].includes(status.data.status) &&
+        !missingPreference && (
+          <QuickAddStatus
+            receipt={status.data}
+            workId={id}
+          />
+        )}
     </div>
   );
 }

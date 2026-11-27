@@ -191,28 +191,46 @@ export default function BookCover({
           <span className="sr-only">In library</span>
         </span>
       )}
-      {progress && (progress.ebook != null || progress.audio != null) && (
-        <div className="cover-water" aria-hidden="true">
-          {(["ebook", "audio"] as const).map((kind) => {
-            const value = progress[kind];
-            if (value == null) return null;
-            const pct = Math.round(value * 100);
-            return (
-              <span
-                key={kind}
-                className={`cover-water-col water-${kind}`}
-                title={`${kind === "audio" ? "Audiobook" : "Ebook"} ${pct}%`}
-              >
+      {(() => {
+        if (!progress) return null;
+        const hasWater =
+          (progress.ebook ?? 0) > 0 || (progress.audio ?? 0) > 0;
+        const isWaiting =
+          !hasWater &&
+          (progress.pending ||
+            progress.ebook === 0 ||
+            progress.audio === 0);
+        if (isWaiting) {
+          return (
+            <div className="cover-download-waiting" role="status" aria-live="polite">
+              <span>Downloading please wait</span>
+            </div>
+          );
+        }
+        if (!hasWater) return null;
+        return (
+          <div className="cover-water" aria-hidden="true">
+            {(["ebook", "audio"] as const).map((kind) => {
+              const value = progress[kind];
+              if (value == null) return null;
+              const pct = Math.round(value * 100);
+              return (
                 <span
-                  className="cover-water-level"
-                  style={{ height: `${Math.max(8, pct)}%` }}
-                />
-                <span className="cover-water-pct">{pct}%</span>
-              </span>
-            );
-          })}
-        </div>
-      )}
+                  key={kind}
+                  className={`cover-water-col water-${kind}`}
+                  title={`${kind === "audio" ? "Audiobook" : "Ebook"} ${pct}%`}
+                >
+                  <span
+                    className="cover-water-level"
+                    style={{ height: `${Math.max(8, pct)}%` }}
+                  />
+                  <span className="cover-water-pct">{pct}%</span>
+                </span>
+              );
+            })}
+          </div>
+        );
+      })()}
       <div className="cover-formats">
         {(["ebook", "audio"] as const).map((kind) => {
           const owned = availability?.[kind];

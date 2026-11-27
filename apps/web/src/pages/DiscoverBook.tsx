@@ -299,6 +299,7 @@ function BookPage({
                   ) : (
                     <QuickAdd
                       workId={work?.id}
+                      title={book.title}
                       owned={
                         work
                           ? {

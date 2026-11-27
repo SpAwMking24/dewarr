@@ -318,6 +318,7 @@ function BookDetailContent({
             ) : (
               <QuickAdd
                 workId={work.id}
+                title={work.title}
                 owned={{
                   ebook: !!work.availability.ebook,
                   audio: !!work.availability.audio,

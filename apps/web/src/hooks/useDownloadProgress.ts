@@ -1,7 +1,12 @@
+import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, result, type Auth } from "../api/client";
 
-export type MediaProgress = { ebook?: number; audio?: number };
+export type MediaProgress = {
+  ebook?: number;
+  audio?: number;
+  pending?: boolean;
+};
 
 type ProgressMap = {
   byWork: Record<string, MediaProgress>;
@@ -18,6 +23,51 @@ const ACTIVE_ATTEMPTS = new Set([
 
 function normaliseTitle(title: string) {
   return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const pendingWorks = new Set<string>();
+const pendingTitles = new Set<string>();
+const listeners = new Set<() => void>();
+let pendingVersion = 0;
+
+function notifyPending() {
+  pendingVersion += 1;
+  for (const listener of listeners) listener();
+}
+
+function subscribePending(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getPendingVersion() {
+  return pendingVersion;
+}
+
+export function setPendingDownload(
+  active: boolean,
+  workId?: string | null,
+  title?: string | null,
+) {
+  let changed = false;
+  if (workId) {
+    if (active && !pendingWorks.has(workId)) {
+      pendingWorks.add(workId);
+      changed = true;
+    } else if (!active && pendingWorks.delete(workId)) {
+      changed = true;
+    }
+  }
+  const key = title ? normaliseTitle(title) : "";
+  if (key) {
+    if (active && !pendingTitles.has(key)) {
+      pendingTitles.add(key);
+      changed = true;
+    } else if (!active && pendingTitles.delete(key)) {
+      changed = true;
+    }
+  }
+  if (changed) notifyPending();
 }
 
 /**
@@ -89,11 +139,14 @@ export function useDownloadProgress(
       return { byWork, byTitle };
     },
   });
-  if (!query.data) return undefined;
-  if (workId && query.data.byWork[workId]) return query.data.byWork[workId];
-  if (title) {
-    const key = normaliseTitle(title);
-    if (key && query.data.byTitle[key]) return query.data.byTitle[key];
-  }
+  useSyncExternalStore(subscribePending, getPendingVersion);
+  const key = title ? normaliseTitle(title) : "";
+  const isPending =
+    (!!workId && pendingWorks.has(workId)) || (!!key && pendingTitles.has(key));
+  const server =
+    (workId && query.data?.byWork[workId]) ||
+    (key ? query.data?.byTitle[key] : undefined);
+  if (server) return isPending ? { ...server, pending: true } : server;
+  if (isPending) return { pending: true };
   return undefined;
 }
