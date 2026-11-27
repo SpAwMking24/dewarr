@@ -8,8 +8,6 @@ import {
   Play,
   RotateCcw,
   RotateCw,
-  SkipBack,
-  SkipForward,
   X,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -24,6 +22,13 @@ import "../listen.css";
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
 const SLEEP_MINUTES = [0, 15, 30, 45, 60];
+
+function remainingText(value: number) {
+  if (value < 60) return `${Math.round(value)} secs`;
+  const h = Math.floor(value / 3600);
+  const m = Math.round((value % 3600) / 60);
+  return h ? `${h} hr ${m} min` : `${m} min`;
+}
 
 function clock(value: number) {
   if (!Number.isFinite(value) || value < 0) return "0:00";
@@ -321,27 +326,38 @@ function Player({
           >
             <ArrowLeft size={18} aria-hidden /> Back
           </Link>
-          <button
-            type="button"
-            className="listen-icon"
-            aria-label="Chapters"
-            aria-expanded={chaptersOpen}
-            onClick={() => setChaptersOpen((open) => !open)}
-          >
-            <List size={18} aria-hidden />
-          </button>
+          <span className="listen-title">
+            <strong>{book.title}</strong>
+            <small>{book.authors.join(", ")}</small>
+          </span>
+          <span className="listen-spacer" aria-hidden />
         </header>
       )}
       <main className="listen-main">
-        {!embedded && book.cover_url && (
-          <img className="listen-cover" src={book.cover_url} alt="" />
-        )}
-        {!embedded && <h1>{book.title}</h1>}
-        {!embedded && (
-          <p className="listen-authors">{book.authors.join(", ")}</p>
-        )}
-        <p className="listen-chapter" aria-live="polite">
+        <div className="listen-timeline">
+          <span>{clock(overall)}</span>
+          <input
+            className="listen-seek"
+            type="range"
+            min={0}
+            max={duration || current?.duration || 0}
+            step={1}
+            value={Math.min(time, duration || current?.duration || 0)}
+            aria-label="Seek"
+            onChange={(event) => seek(Number(event.target.value))}
+          />
+          <span>-{clock(Math.max(0, knownLength - overall))}</span>
+        </div>
+        <p className="listen-remaining" aria-live="polite">
+          {remainingText(Math.max(0, (duration || 0) - time))} left in chapter
+        </p>
+        <p className="listen-chapter">
           {chapterNow?.title}
+          {chapters.length > 1 && (
+            <small>
+              Chapter {chapters.indexOf(chapterNow) + 1} of {chapters.length}
+            </small>
+          )}
         </p>
         {error && <p role="alert">{error}</p>}
         <audio
@@ -387,35 +403,18 @@ function Player({
               .catch(() => setError(fallback));
           }}
         />
-        <input
-          className="listen-seek"
-          type="range"
-          min={0}
-          max={duration || current?.duration || 0}
-          step={1}
-          value={Math.min(time, duration || current?.duration || 0)}
-          aria-label="Seek"
-          onChange={(event) => seek(Number(event.target.value))}
-        />
-        <div className="listen-times">
-          <span>{clock(time)}</span>
-          <span>{Math.round(fraction * 100)}% of book</span>
-          <span>-{clock(Math.max(0, (duration || 0) - time))}</span>
-        </div>
+        {!embedded && book.cover_url && (
+          <img className="listen-cover" src={book.cover_url} alt="" />
+        )}
         <div className="listen-controls">
           <button
             type="button"
-            aria-label="Previous chapter"
-            onClick={() => jumpChapter(-1)}
+            aria-label="Back 30 seconds"
+            className="listen-skip"
+            onClick={() => seek(time - 30)}
           >
-            <SkipBack size={22} aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Back 15 seconds"
-            onClick={() => seek(time - 15)}
-          >
-            <RotateCcw size={24} aria-hidden />
+            <RotateCcw size={44} strokeWidth={1.5} aria-hidden />
+            <b>30</b>
           </button>
           <button
             type="button"
@@ -424,58 +423,50 @@ function Player({
             onClick={toggle}
           >
             {playing ? (
-              <Pause size={30} aria-hidden />
+              <Pause size={34} aria-hidden />
             ) : (
-              <Play size={30} aria-hidden />
+              <Play size={34} aria-hidden />
             )}
           </button>
           <button
             type="button"
             aria-label="Forward 30 seconds"
+            className="listen-skip"
             onClick={() => seek(time + 30)}
           >
-            <RotateCw size={24} aria-hidden />
+            <RotateCw size={44} strokeWidth={1.5} aria-hidden />
+            <b>30</b>
           </button>
+        </div>
+        <nav className="listen-bar" aria-label="Playback options">
           <button
             type="button"
-            aria-label="Next chapter"
-            onClick={() => jumpChapter(1)}
+            onClick={() =>
+              setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])
+            }
           >
-            <SkipForward size={22} aria-hidden />
+            <strong>{speed.toFixed(1)}X</strong>
+            <span>Speed</span>
           </button>
-        </div>
-        <div className="listen-options">
-          <label>
-            Speed
-            <select
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
-            >
-              {SPEEDS.map((value) => (
-                <option key={value} value={value}>
-                  {value}x
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <Moon size={14} aria-hidden /> Sleep
-            <select
-              value={sleepLeft ? "on" : "0"}
-              onChange={(event) => startSleep(Number(event.target.value) || 0)}
-            >
-              <option value="0">
-                {sleepLeft ? `${clock(sleepLeft)} left` : "Off"}
-              </option>
-              {SLEEP_MINUTES.filter(Boolean).map((value) => (
-                <option key={value} value={value}>
-                  {value} min
-                </option>
-              ))}
-              {sleepLeft > 0 && <option value="0">Cancel</option>}
-            </select>
-          </label>
-        </div>
+          {!embedded && (
+            <button type="button" onClick={() => setChaptersOpen(true)}>
+              <List size={20} aria-hidden />
+              <span>Chapters</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const steps = SLEEP_MINUTES;
+              const now = sleepLeft ? Math.ceil(sleepLeft / 60) : 0;
+              const next = steps.find((value) => value > now) ?? 0;
+              startSleep(sleepLeft && next === 0 ? 0 : next);
+            }}
+          >
+            <Moon size={20} aria-hidden />
+            <span>{sleepLeft ? `${clock(sleepLeft)}` : "Sleep timer"}</span>
+          </button>
+        </nav>
       </main>
       {embedded ? (
         <aside className="listen-chapters-inline" aria-label="Chapters">
