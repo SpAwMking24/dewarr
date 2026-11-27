@@ -382,7 +382,7 @@ async def start(
 async def record(db, attempt, state, message, *, poll=False):
     attempt.state, attempt.message = state, message
     attempt.run_token, attempt.lease_until = None, None
-    interval = 10 if state == "downloading" else 60
+    interval = 5 if state == "downloading" else 60
     attempt.next_check_at = datetime.now(UTC) + timedelta(seconds=interval) if poll else None
     operation = await db.get(Operation, attempt.operation_id)
     operation.status = (

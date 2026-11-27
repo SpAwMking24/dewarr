@@ -58,6 +58,9 @@ class SlskdRelease(Release):
 
 
 class SlskdState(DownloadState):
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
+    download_speed: int | None = Field(default=None, ge=0)
+    eta_seconds: int | None = Field(default=None, ge=0)
     reported_complete: bool = False
     total_bytes: int | None = Field(default=None, ge=0)
     failure_reason: str | None = None
@@ -353,6 +356,45 @@ def match_file(
     return None
 
 
+def _optional_nonneg_float(value: Any) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < 0 or parsed != parsed:  # NaN check
+        return None
+    return parsed
+
+
+def _transfer_progress_fields(transfer: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
+    transferred = _optional_nonneg_float(transfer.get("bytesTransferred"))
+    percent = _optional_nonneg_float(transfer.get("percentComplete"))
+    speed = _optional_nonneg_float(transfer.get("averageSpeed"))
+    return transferred, percent, speed
+
+
+def _index_user_downloads(body: Any) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    by_id: dict[str, dict[str, Any]] = {}
+    by_name: dict[str, dict[str, Any]] = {}
+    if not isinstance(body, dict):
+        return by_id, by_name
+    for directory in body.get("directories") or []:
+        if not isinstance(directory, dict):
+            continue
+        for item in directory.get("files") or []:
+            if not isinstance(item, dict):
+                continue
+            tid = str(item.get("id") or "")
+            if tid:
+                by_id[tid] = item
+            fname = str(item.get("filename") or "").replace("\\", "/")
+            if fname:
+                by_name[fname] = item
+    return by_id, by_name
+
+
 class SlskdClient:
     def __init__(self, base_url: str, api_key: str, *, timeout: float = 20, transport=None) -> None:
         import httpx
@@ -541,6 +583,28 @@ class SlskdClient:
         complete = bool(transfers) and len(transfers) == len(descriptor.files)
         failed_transfer = False
         failure_reason = None
+        needs_live_lookup = any(
+            not transfer_finished(t.get("state"))
+            and not transfer_failed(t.get("state"))
+            and t.get("bytesTransferred") is None
+            and t.get("percentComplete") is None
+            for t in transfers
+            if isinstance(t, dict)
+        )
+        live_by_id: dict[str, dict[str, Any]] = {}
+        live_by_name: dict[str, dict[str, Any]] = {}
+        if needs_live_lookup and release.username:
+            try:
+                user_body = await self.request(
+                    "GET", f"/transfers/downloads/{quote(release.username, safe='')}"
+                )
+            except AdapterError:
+                user_body = None
+            live_by_id, live_by_name = _index_user_downloads(user_body)
+
+        total_bytes = sum(item.size_bytes for item in descriptor.files)
+        transferred_bytes = 0.0
+        speed_sum = 0.0
         for transfer in transfers:
             remote = str(transfer.get("filename") or "").replace("\\", "/")
             size = optional_count(transfer.get("size"))
@@ -578,15 +642,47 @@ class SlskdClient:
                         complete=done and not failed and size is not None,
                     )
                 )
+                file_size = described.size_bytes
+                if done and not failed:
+                    transferred_bytes += file_size
+                elif not failed:
+                    b_done, pct, spd = _transfer_progress_fields(transfer)
+                    if b_done is None and pct is None:
+                        live = live_by_id.get(str(transfer.get("id") or "")) or live_by_name.get(
+                            remote
+                        )
+                        if live:
+                            b_done, pct, spd = _transfer_progress_fields(live)
+                    if b_done is not None:
+                        transferred_bytes += min(float(file_size), b_done) if file_size > 0 else b_done
+                    elif pct is not None:
+                        transferred_bytes += file_size * max(0.0, min(1.0, pct / 100.0))
+                    if spd is not None and spd > 0:
+                        speed_sum += spd
         if remaining or len(files) != len(descriptor.files):
             complete = False
         # One failed file means this folder can never match the saved file list.
         if failed_transfer:
             complete = False
+        if complete:
+            progress = 1.0
+        elif total_bytes > 0:
+            progress = max(0.0, min(1.0, transferred_bytes / total_bytes))
+        else:
+            progress = 0.0
+        download_speed = int(round(speed_sum)) if speed_sum > 0 and not complete and not failed_transfer else None
+        eta_seconds = (
+            max(0, int(round((total_bytes - transferred_bytes) / speed_sum)))
+            if download_speed and total_bytes > transferred_bytes
+            else None
+        )
         return SlskdState(
             external_id=batch_id,
             state="failed" if failed_transfer else "complete" if complete else "downloading",
             completed=complete,
+            progress=progress,
+            download_speed=download_speed,
+            eta_seconds=eta_seconds,
             save_path="",
             files=files,
             association_verified=True,

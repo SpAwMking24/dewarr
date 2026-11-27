@@ -31,6 +31,7 @@ class SabState(DownloadState):
     names: set[str] = Field(default_factory=set)
     failed: bool = False
     reported_complete: bool = False
+    progress: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 def inside(path, root):
@@ -147,8 +148,24 @@ def parse_job(row, *, completed):
         storage = row.get("storage") or ""
         if completed and not failed:
             path = absolute_path(storage)
+            progress = 1.0
         else:
             path = "/pending"
+            progress = 0.0
+            raw_pct = row.get("percentage")
+            if raw_pct is not None and not isinstance(raw_pct, bool):
+                try:
+                    progress = max(0.0, min(1.0, float(raw_pct) / 100.0))
+                except (TypeError, ValueError):
+                    progress = 0.0
+            if progress == 0.0:
+                try:
+                    mb = float(row.get("mb") or 0)
+                    mbleft = float(row.get("mbleft") or 0)
+                    if mb > 0:
+                        progress = max(0.0, min(1.0, (mb - mbleft) / mb))
+                except (TypeError, ValueError):
+                    pass
         return SabState(
             external_id=identifier,
             state=status,
@@ -158,6 +175,7 @@ def parse_job(row, *, completed):
             names=names,
             failed=failed,
             reported_complete=completed and not failed,
+            progress=progress,
         )
     except (KeyError, TypeError, ValueError) as error:
         raise AdapterError(
