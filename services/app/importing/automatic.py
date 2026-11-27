@@ -374,6 +374,13 @@ def relevant_groups(groups, files, titles):
             group.medium,
             tuple(sorted((files.get(f.path) or {}).get("sha256") or f.path for f in group.files)),
         )
+        if group.medium == "ebook" and len(group.files) == 1:
+            stem = re.sub(r"[\s_.-]*\d{6,}$", "", PurePosixPath(group.files[0].path).stem)
+            alias = (group.medium, "stem", stem.casefold().strip())
+            if alias in seen:
+                content = alias
+            else:
+                seen[alias] = group.key
         if content in seen:
             skipped.append(
                 {

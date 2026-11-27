@@ -43,3 +43,16 @@ def test_single_group_is_untouched():
     groups = [group("a", "Anything.epub")]
     kept, skipped = relevant_groups(groups, observed(("Anything.epub", "1")), ["Other"])
     assert kept == groups and not skipped
+
+
+def test_suffixed_ebook_copy_with_different_bytes_collapses():
+    groups = [
+        group("a", "Raise the Titanic! - Clive Cussler.epub"),
+        group("b", "Raise the Titanic! - Clive Cussler_639131596366706643.epub"),
+    ]
+    files = observed(
+        ("Raise the Titanic! - Clive Cussler.epub", "x"),
+        ("Raise the Titanic! - Clive Cussler_639131596366706643.epub", "z"),
+    )
+    kept, skipped = relevant_groups(groups, files, ["Raise the Titanic!"])
+    assert [g.key for g in kept] == ["a"] and len(skipped) == 1

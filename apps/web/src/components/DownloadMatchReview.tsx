@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, result } from "../api/client";
 import type { components } from "../api/schema";
@@ -125,6 +125,19 @@ export default function DownloadMatchReview({
             file.path,
           )),
     ) || [];
+  // Several file groups: let the importer drop other books and duplicate copies
+  // itself, once per download, instead of asking for a manual choice.
+  const autoRetried = useRef<string | null>(null);
+  const multipleGroups =
+    !unreadable.length &&
+    (data?.grouping.content.groups.length || 0) > 1 &&
+    download.can_retry;
+  useEffect(() => {
+    if (multipleGroups && !retrying && autoRetried.current !== inspection.id) {
+      autoRetried.current = inspection.id;
+      retry();
+    }
+  }, [multipleGroups, retrying, inspection.id, retry]);
   const reason = unreadable.length
     ? unreadable[0].reason ||
       "The downloaded book could not be read. Check its files and try again."
@@ -319,6 +332,18 @@ export default function DownloadMatchReview({
                   {retrying ? "Checking files…" : "Check files again"}
                 </button>
               )}
+              {!unreadable.length &&
+                !group &&
+                (data?.grouping.content.groups.length || 0) > 1 &&
+                download.can_retry && (
+                  <button
+                    className="primary"
+                    disabled={retrying}
+                    onClick={retry}
+                  >
+                    {retrying ? "Checking download…" : "Continue automatically"}
+                  </button>
+                )}
               <Link
                 className="button"
                 to={`/books/${download.work_id}?tab=sources`}
