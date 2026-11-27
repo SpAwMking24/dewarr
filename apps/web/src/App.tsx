@@ -3,6 +3,8 @@ import {
   searchUrl,
 } from "./components/SearchFormatTabs";
 import NavigationContinuity from "./components/NavigationContinuity";
+import { AudioPlayerProvider } from "./components/AudioPlayerContext";
+import { AudioPlayerUI } from "./components/AudioPlayerUI";
 import ContentSkeleton from "./components/ContentSkeleton";
 import ConnectionHealth from "./components/ConnectionHealth";
 import { ApplicationRelease } from "./components/ApplicationRelease";
@@ -448,7 +450,8 @@ function Shell({ auth }: { auth: Auth }) {
       </main>
     );
   return (
-    <div className="app-shell">
+    <AudioPlayerProvider>
+      <div className="app-shell">
       <NavigationContinuity />
       <a className="skip-link" href="#main">
         Skip to content
@@ -791,7 +794,9 @@ function Shell({ auth }: { auth: Auth }) {
           </Suspense>
         </main>
       </div>
+      <AudioPlayerUI />
     </div>
+    </AudioPlayerProvider>
   );
 }
 

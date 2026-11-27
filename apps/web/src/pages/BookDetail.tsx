@@ -1,7 +1,7 @@
 import ContentSkeleton from "../components/ContentSkeleton";
 import { AuthorFollows } from "../components/FollowCatalog";
 import QuickAdd from "../components/QuickAdd";
-import { EmbeddedAudiobook } from "./AudiobookPlayer";
+import { useAudioPlayer } from "../components/AudioPlayerContext";
 import BookGrouping from "../components/BookGrouping";
 import PartSets from "../components/CombineParts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -82,7 +82,7 @@ function BookDetailContent({
       : "overview";
   const cache = useQueryClient();
   const [action, setAction] = useState<"request" | "list" | null>(null);
-  const [listening, setListening] = useState(false);
+  const audioPlayer = useAudioPlayer();
   const [listId, setListId] = useState("");
   const [wantedVersion, setWantedVersion] = useState<WantedVersion | null>(
     null,
@@ -267,14 +267,21 @@ function BookDetailContent({
             <button
               type="button"
               className="nn-pill-btn"
-              aria-pressed={listening}
-              onClick={() => setListening((open) => !open)}
+              onClick={() =>
+                void audioPlayer.openBook(listenableAudio.data!.asset_id, {
+                  autoplay: true,
+                  openSheet: true,
+                })
+              }
             >
               <Headphones size={16} aria-hidden="true" />
-              {listenableAudio.data.progress &&
-              listenableAudio.data.progress.fraction > 0.01
-                ? `Play Audio · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
-                : "Play Audio"}
+              {audioPlayer.book?.asset_id === listenableAudio.data.asset_id &&
+              audioPlayer.playing
+                ? "Now Playing"
+                : listenableAudio.data.progress &&
+                    listenableAudio.data.progress.fraction > 0.01
+                  ? `Play Audio · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
+                  : "Play Audio"}
             </button>
           )}
           {readableEbook.data && (
@@ -348,12 +355,7 @@ function BookDetailContent({
           }}
         />
       )}
-      {listening && listenableAudio.data ? (
-        <EmbeddedAudiobook
-          assetId={listenableAudio.data.asset_id}
-          onClose={() => setListening(false)}
-        />
-      ) : tab === "overview" ? (
+      {tab === "overview" ? (
         <RelatedCarousel work={work} cover={cover} />
       ) : (
         <div
