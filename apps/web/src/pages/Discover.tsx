@@ -730,24 +730,6 @@ function Browse() {
         >
           <Check size={15} /> In library
         </button>
-        <form
-          className="explore-filter-search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            change("q", String(new FormData(e.currentTarget).get("q") || ""));
-          }}
-        >
-          <input
-            key={q}
-            defaultValue={q}
-            name="q"
-            aria-label="Search discovery books"
-            placeholder="Title or author"
-          />
-          <button aria-label="Search discovery books">
-            <Search size={17} />
-          </button>
-        </form>
       </div>
       {category && (
         <button onClick={() => change("category", "")}>{category} ×</button>
