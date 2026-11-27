@@ -302,7 +302,24 @@ def inspect_file(fd, path, deadline):
             result["technical"] = probe_audio(fd, extension, deadline)
         elif extension == "epub":
             result["medium"] = "ebook"
-            result["metadata"] = inspect_epub(fd)
+            try:
+                result["metadata"] = inspect_epub(fd)
+            except InspectionError:
+                raise
+            except (KeyError, ValueError, ElementTree.ParseError):
+                # Sloppy package metadata only: a readable zip whose name already reads
+                # "Title - Author" is judged by that name (matched against the request later).
+                if " - " not in PurePosixPath(path).stem:
+                    raise
+                result["metadata"] = {
+                    "title": None,
+                    "authors": [],
+                    "languages": [],
+                    "identifiers": [],
+                    "identifier_assertions": [],
+                    "spine_entries": 1,
+                    "relaxed": True,
+                }
         elif extension in {"pdf", "cbz"}:
             result["medium"] = "ebook"
             output = probe_output(
