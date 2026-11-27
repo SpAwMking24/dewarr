@@ -203,7 +203,7 @@ export default function BookCover({
         if (isWaiting) {
           return (
             <div className="cover-download-waiting" role="status" aria-live="polite">
-              <span>Downloading please wait</span>
+              <span>Searching</span>
             </div>
           );
         }
