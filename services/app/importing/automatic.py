@@ -708,6 +708,25 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         )
         return
     if not choices:
+        # A DRM-protected / encrypted EPUB of the requested book can never import:
+        # reject the download so the next release is tried automatically.
+        if not release_rejection:
+            from app.domain.catalog_titles import display_title
+            from app.domain.identity import normalized
+            from app.importing.linked_download import _contains_phrase
+
+            book_files = [f for f in files.values() if not is_extra(f["path"])]
+            for file in book_files:
+                if file["state"] == "inspected" or "encrypted" not in (file.get("reason") or ""):
+                    continue
+                stem = normalized(PurePosixPath(file["path"]).stem)
+                if len(book_files) == 1 or any(
+                    _contains_phrase(stem, normalized(display_title(title)))
+                    for title in requested_titles
+                    if normalized(display_title(title))
+                ):
+                    release_rejection = True
+                    break
         if release_rejection:
             row.evidence = {**row.evidence, "release_rejection": True}
             await enqueue(
