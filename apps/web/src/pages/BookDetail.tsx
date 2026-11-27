@@ -1,4 +1,3 @@
-import { ReturnLink } from "../components/NavigationContinuity";
 import ContentSkeleton from "../components/ContentSkeleton";
 import { AuthorFollows } from "../components/FollowCatalog";
 import QuickAdd from "../components/QuickAdd";
@@ -7,7 +6,7 @@ import BookGrouping from "../components/BookGrouping";
 import PartSets from "../components/CombineParts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Headphones, Settings2 } from "lucide-react";
+import { BookOpen, Headphones } from "lucide-react";
 import {
   Link,
   Navigate,
@@ -20,7 +19,6 @@ import { fetchWorkEbook } from "../api/reader";
 import { useListenableAudio } from "../hooks/useListenableAudio";
 import {
   BookHero,
-  BookOverview,
   releaseIsAhead,
 } from "../components/BookPresentation";
 import FollowRelease, { useReleaseWatch } from "../components/FollowRelease";
@@ -39,7 +37,7 @@ import BookDetailsStatus from "../components/BookDetailsStatus";
 import BookDialog from "../components/BookDialog";
 import CatalogEditions from "../components/CatalogEditions";
 const BookSources = lazy(() => import("./BookSources"));
-const RelatedBooks = lazy(() => import("../components/RelatedBooks"));
+import RelatedCarousel from "../components/RelatedCarousel";
 const tabs = [
   ["overview", "Overview"],
   ["library", "Library copies"],
@@ -223,16 +221,6 @@ function BookDetailContent({
     <article
       className={`reader-page catalog-reader catalog-workspace ${["sources", "downloads", "manage"].includes(tab) ? "reader-operational" : ""}`}
     >
-      <div className="book-topbar">
-        <ReturnLink fallback="/library" label="My Library" />
-        <Link
-          className={`book-manage-link ${tab === "manage" ? "active" : ""}`}
-          to={href("manage")}
-          aria-label="Book metadata"
-        >
-          <Settings2 size={17} /> Book metadata
-        </Link>
-      </div>
       <BookHero
         title={work.title}
         authors={work.authors}
@@ -365,33 +353,15 @@ function BookDetailContent({
           assetId={listenableAudio.data.asset_id}
           onClose={() => setListening(false)}
         />
-      ) : tab !== "overview" ? (
+      ) : tab === "overview" ? (
+        <RelatedCarousel work={work} cover={cover} />
+      ) : (
         <div
           id="book-tab-panel"
           role="tabpanel"
           aria-label={tab === "manage" ? "Book metadata" : "Book section"}
           tabIndex={0}
         >
-            {tab === "overview" && (
-              <>
-                {!description &&
-                (metadata.isPending ||
-                  matching ||
-                  (source && !matchedBook && provider.isPending)) ? (
-                  <Loading />
-                ) : (
-                  <BookOverview
-                    description={description}
-                    subjects={
-                      provider.data?.book?.subjects || source?.book?.subjects
-                    }
-                  />
-                )}
-                <Suspense fallback={<Loading />}>
-                  <RelatedBooks workId={id} />
-                </Suspense>
-              </>
-            )}
             {tab === "library" && (
               <section className="book-tab-section">
                 <div className="book-tab-heading">
@@ -495,7 +465,7 @@ function BookDetailContent({
               </section>
             )}
         </div>
-      ) : null}
+      )}
       {canEdit && action && (
         <BookDialog
           title={action === "list" ? "Add to reading list" : "Request book"}

@@ -456,6 +456,15 @@ a {
   gap: 12px;
   margin-top: 4px;
 }
+.nn-book-actions .quick-add {
+  display: contents;
+}
+.nn-book-actions .quick-add-formats {
+  display: contents;
+}
+.nn-book-actions .quick-add > :not(.quick-add-formats) {
+  flex-basis: 100%;
+}
 .nn-pill-btn,
 .nn-book-actions .quick-add-formats button {
   display: inline-flex;
@@ -497,6 +506,79 @@ a {
   .nn-book-card .reader-cover-wrap {
     max-width: 170px;
   }
+}
+
+/* NovelNest Related Books Carousel below book card (selected book slightly larger) */
+.nn-carousel-section {
+  margin-top: 34px;
+}
+.nn-carousel {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  overflow-x: auto;
+  padding: 18px 8px 16px;
+  scrollbar-width: thin;
+}
+.nn-carousel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 146px;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: var(--muted);
+  transition: transform 200ms ease, color 150ms;
+}
+.nn-carousel-item:hover {
+  transform: translateY(-6px);
+  color: var(--text);
+}
+.nn-carousel-item.is-current {
+  width: 184px;
+  color: var(--text);
+}
+.nn-carousel-cover {
+  position: relative;
+}
+.nn-carousel-cover .book-cover {
+  border-radius: 10px;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+}
+.nn-carousel-cover .cover-formats,
+.nn-carousel-cover .cover-owned {
+  display: none;
+}
+.nn-carousel-item.is-current .book-cover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.6);
+}
+.nn-carousel-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(22, 23, 26, 0.82);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  backdrop-filter: blur(6px);
+}
+.nn-carousel-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nn-carousel-item.is-current .nn-carousel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 /* Player */
