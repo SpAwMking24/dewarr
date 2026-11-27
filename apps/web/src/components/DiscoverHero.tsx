@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Star } from "lucide-react";
+import { BookOpen, Calendar, Headphones, Plus, Sparkles, Star } from "lucide-react";
 import { api, result } from "../api/client";
 import BookCover from "./BookCover";
 import { browseCache } from "../queryPolicies";
@@ -31,33 +31,73 @@ export default function DiscoverHero() {
           : book.provider && book.external_id
             ? `/discover/books/${book.provider}/${encodeURIComponent(book.external_id)}`
             : `/search?q=${encodeURIComponent(book.title)}`;
+        const summary =
+          item.work?.description ||
+          item.reason ||
+          (book.genres.length
+            ? `Featured in ${book.genres.slice(0, 3).join(", ")}.`
+            : "Popular with readers right now.");
         return (
-          <article className="hero-card" key={`${book.provider}:${book.external_id}:${index}`}>
+          <article
+            className="hero-card"
+            key={`${book.provider}:${book.external_id}:${index}`}
+          >
             <div className="hero-copy">
               <h2>
                 <Link to={to}>{book.title}</Link>
                 {book.rating ? (
                   <span className="hero-rating">
-                    <Star size={12} aria-hidden /> {Number(book.rating).toFixed(1)}
+                    <Star size={11} fill="currentColor" aria-hidden />{" "}
+                    {Number(book.rating).toFixed(1)}
                   </span>
                 ) : null}
               </h2>
               <p className="hero-author">
-                {book.authors.join(", ") || "Author unknown"}
+                Written by : {book.authors.join(", ") || "Author unknown"}
               </p>
+              <div className="hero-meta">
+                {book.publication_year && (
+                  <span>
+                    <Calendar size={12} aria-hidden /> {book.publication_year}
+                  </span>
+                )}
+                {book.genres.slice(0, 2).map((g) => (
+                  <span key={g}>
+                    <Sparkles size={12} aria-hidden /> {g}
+                  </span>
+                ))}
+              </div>
+              <div className="hero-desc">
+                <strong>Description</strong>
+                <p>{summary}</p>
+              </div>
               <div className="hero-actions">
                 <Link className="hero-button solid" to={to}>
+                  <Headphones size={15} aria-hidden />
                   Get this book
                 </Link>
                 <Link
                   className="hero-button"
                   to={`/search?q=${encodeURIComponent(book.title)}`}
                 >
+                  <BookOpen size={15} aria-hidden />
                   Find downloads
+                </Link>
+                <Link
+                  className="hero-diamond"
+                  to={to}
+                  aria-label={`Open ${book.title}`}
+                  title="Open book details"
+                >
+                  <Plus size={14} aria-hidden />
                 </Link>
               </div>
             </div>
-            <Link className="hero-cover" to={to} aria-label={`View ${book.title}`}>
+            <Link
+              className="hero-cover"
+              to={to}
+              aria-label={`View ${book.title}`}
+            >
               <span className="hero-ribbon">Trending</span>
               <BookCover
                 title={book.title}
@@ -67,6 +107,7 @@ export default function DiscoverHero() {
                     : undefined
                 }
                 cover={book.cover_url}
+                actions={false}
               />
             </Link>
           </article>

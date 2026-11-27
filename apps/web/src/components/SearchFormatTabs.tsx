@@ -36,7 +36,7 @@ export default function SearchFormatTabs({
       {(
         [
           ["ebook", "E-book", BookOpen],
-          ["audiobook", "Audiobook", Headphones],
+          ["audiobook", "AudioBook", Headphones],
         ] as const
       ).map(([id, label, Icon]) => (
         <button

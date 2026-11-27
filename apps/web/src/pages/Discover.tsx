@@ -30,6 +30,7 @@ import FollowedLists, {
   PersonalRow,
 } from "../components/FollowedLists";
 import DiscoverHero from "../components/DiscoverHero";
+import DiscoverHighlights from "../components/DiscoverHighlights";
 import DiscoverSearch from "../components/DiscoverSearch";
 import DeferredShelf from "../components/DeferredShelf";
 import DiscoveryShelf from "../components/DiscoveryShelf";
@@ -356,10 +357,17 @@ function Home({ canEdit }: { canEdit: boolean }) {
           .map((row, index) => (
             // Keep the wrapper stable when late-arriving sources reorder rows:
             // changing wrapper types remounts shelves and restarts their requests.
-            <DeferredShelf key={row.id} title={row.title} immediate={index < 6}>
-              {row.content}
-            </DeferredShelf>
+            <div key={row.id}>
+              <DeferredShelf title={row.title} immediate={index < 6}>
+                {row.content}
+              </DeferredShelf>
+              {index === 0 && <DiscoverHighlights />}
+            </div>
           ))}
+      {!layout.isPending &&
+        rows.filter((r) => !hidden.includes(r.id)).length === 0 && (
+          <DiscoverHighlights />
+        )}
       {rows.length > 0 && rows.every((r) => hidden.includes(r.id)) && (
         <p className="explore-empty">
           Your home is clear. Choose shelves in Customize or add a collection.
