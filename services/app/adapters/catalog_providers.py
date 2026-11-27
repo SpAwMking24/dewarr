@@ -74,6 +74,62 @@ def contributors(records, role: str) -> list[str]:
     return list(dict.fromkeys(names))
 
 
+def _author_image_url(author: dict) -> str | None:
+    for key in ("cached_image", "image", "image_url"):
+        raw = author.get(key)
+        if isinstance(raw, dict):
+            candidate = cover_url(raw.get("url"))
+            if candidate:
+                return candidate
+        elif isinstance(raw, str):
+            candidate = cover_url(raw)
+            if candidate:
+                return candidate
+    return None
+
+
+def author_profiles(records, contributions=None) -> list[dict]:
+    """Extract unique author profiles (name, external_id, image_url) from Hardcover rows."""
+    profiles: dict[str, dict] = {}
+    for source in (contributions, records):
+        if not isinstance(source, list):
+            continue
+        for record in source:
+            if not isinstance(record, dict):
+                continue
+            kind = record.get("contribution")
+            if kind not in {None, "Author"}:
+                continue
+            author = record.get("author")
+            if not isinstance(author, dict):
+                continue
+            raw_name = author.get("name")
+            if not isinstance(raw_name, str) or not raw_name.strip():
+                continue
+            name = raw_name.strip()
+            key = name.lower()
+            raw_id = author.get("id")
+            ext_id = (
+                str(raw_id)
+                if isinstance(raw_id, int) and not isinstance(raw_id, bool) and raw_id > 0
+                else (raw_id if isinstance(raw_id, str) and raw_id.isdigit() else None)
+            )
+            image_url = _author_image_url(author)
+            existing = profiles.get(key)
+            if existing is None:
+                profiles[key] = {
+                    "name": name,
+                    "external_id": ext_id,
+                    "image_url": image_url,
+                }
+            else:
+                if not existing["external_id"] and ext_id:
+                    existing["external_id"] = ext_id
+                if not existing["image_url"] and image_url:
+                    existing["image_url"] = image_url
+    return list(profiles.values())
+
+
 class Hardcover:
     def __init__(self, request):
         self.request = request

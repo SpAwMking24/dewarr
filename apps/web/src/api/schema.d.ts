@@ -8113,6 +8113,14 @@ export interface components {
       retry_after?: number | null;
     };
     /** DiscoveryTitle */
+    DiscoveryAuthor: {
+      /** Name */
+      name: string;
+      /** External Id */
+      external_id?: string | null;
+      /** Image Url */
+      image_url?: string | null;
+    };
     DiscoveryTitle: {
       /** Rating */
       rating?: number | null;
@@ -8127,6 +8135,8 @@ export interface components {
       title: string;
       /** Authors */
       authors: string[];
+      /** Author Profiles */
+      author_profiles?: components["schemas"]["DiscoveryAuthor"][];
       /** Cover Url */
       cover_url?: string | null;
       /** Publication Year */

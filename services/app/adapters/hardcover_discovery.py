@@ -5,11 +5,14 @@ from typing import Literal
 
 from pydantic import BaseModel, ValidationError
 
-from app.adapters.catalog_providers import contributors, identifier, parse_failure
+from app.adapters.catalog_providers import author_profiles, contributors, identifier, parse_failure
 from app.adapters.catalog_types import BookData, cover_url, year
 from app.domain.release_dates import genre_slug
 
-FIELDS = "id canonical_id rating title release_year release_date cached_image cached_contributors"
+FIELDS = (
+    "id canonical_id rating title release_year release_date cached_image cached_contributors "
+    "contributions(limit: 5) { contribution author { id name cached_image } }"
+)
 HC_TRENDING = """query DiscoveryTrending($offset: Int!) {
  books_trending(duration: month, limit: 21, offset: $offset) { ids error }
 }"""
@@ -38,10 +41,17 @@ HC_UPCOMING = """query UpcomingAudio($from: date!, $to: date!, $offset: Int!) {
 }"""
 
 
+class AuthorSummary(BaseModel):
+    name: str
+    external_id: str | None = None
+    image_url: str | None = None
+
+
 class DiscoveryBook(BookData):
     release_date: date | None = None
     genres: list[str] = []
     date_basis: Literal["audiobook", "work", "unknown"] = "unknown"
+    author_profiles: list[AuthorSummary] = []
 
 
 class DiscoveryBatch(BaseModel):
@@ -107,6 +117,12 @@ def book(row, *, release_date=None, genres=None, date_basis="unknown"):
         title=row["title"],
         rating=row.get("rating"),
         authors=contributors(row.get("cached_contributors"), "Author"),
+        author_profiles=[
+            AuthorSummary.model_validate(profile)
+            for profile in author_profiles(
+                row.get("cached_contributors"), row.get("contributions")
+            )
+        ],
         publication_year=year(row.get("release_year")),
         release_date=row.get("release_date") if release_date is None else release_date,
         genres=genres or [],

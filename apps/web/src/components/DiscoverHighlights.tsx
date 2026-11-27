@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api, result } from "../api/client";
@@ -20,6 +21,35 @@ function initials(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
+type HighlightAuthor = {
+  name: string;
+  external_id?: string | null;
+  image_url?: string | null;
+};
+
+function AuthorAvatar({ author }: { author: HighlightAuthor }) {
+  const [failed, setFailed] = useState(false);
+  const src =
+    author.image_url && !failed
+      ? `/api/catalog/cover-image?url=${encodeURIComponent(author.image_url)}`
+      : null;
+  return (
+    <span className="nn-author-avatar" aria-hidden="true">
+      {src ? (
+        <img
+          className="nn-author-photo"
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        initials(author.name)
+      )}
+    </span>
+  );
+}
+
 /** NovelNest-style Authors avatar strip and 4x2 coloured Genre tiles. */
 export default function DiscoverHighlights() {
   const trending = useQuery({
@@ -37,18 +67,41 @@ export default function DiscoverHighlights() {
   });
 
   const items = trending.data?.items || [];
-  const seen = new Set<string>();
-  const authors: { name: string; cover?: string | null }[] = [];
+  const seen = new Map<string, HighlightAuthor>();
   for (const item of items) {
+    const profiles = item.book.author_profiles || [];
+    for (const profile of profiles) {
+      const name = profile.name?.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const existing = seen.get(key);
+      if (!existing) {
+        if (seen.size >= 8) break;
+        seen.set(key, {
+          name,
+          external_id: profile.external_id,
+          image_url: profile.image_url,
+        });
+      } else {
+        if (!existing.external_id && profile.external_id) {
+          existing.external_id = profile.external_id;
+        }
+        if (!existing.image_url && profile.image_url) {
+          existing.image_url = profile.image_url;
+        }
+      }
+    }
     for (const raw of item.book.authors || []) {
       const name = raw.trim();
-      if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase());
-      authors.push({ name, cover: item.book.cover_url });
-      if (authors.length >= 8) break;
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!seen.has(key)) {
+        if (seen.size >= 8) break;
+        seen.set(key, { name });
+      }
     }
-    if (authors.length >= 8) break;
   }
+  const authors = Array.from(seen.values()).slice(0, 8);
 
   function coverForGenre(slug: string, idx: number) {
     const token = slug.replace(/-/g, " ");
@@ -73,11 +126,13 @@ export default function DiscoverHighlights() {
               <Link
                 key={author.name}
                 className="nn-author"
-                to={`/search?q=${encodeURIComponent(author.name)}`}
+                to={
+                  author.external_id
+                    ? `/authors/hardcover/${encodeURIComponent(author.external_id)}`
+                    : `/search?q=${encodeURIComponent(author.name)}`
+                }
               >
-                <span className="nn-author-avatar" aria-hidden="true">
-                  {initials(author.name)}
-                </span>
+                <AuthorAvatar author={author} />
                 <span className="nn-author-name">{author.name}</span>
               </Link>
             ))}

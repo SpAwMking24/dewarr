@@ -42,6 +42,20 @@ export default function DiscoverHero() {
             className="hero-card"
             key={`${book.provider}:${book.external_id}:${index}`}
           >
+            <svg
+              className="hero-circles"
+              viewBox="0 0 600 260"
+              preserveAspectRatio="xMidYMid slice"
+              aria-hidden="true"
+            >
+              <circle cx="372" cy="48" r="64" fill="currentColor" fillOpacity="0.05" />
+              <circle cx="308" cy="216" r="34" fill="currentColor" fillOpacity="0.048" />
+              <circle cx="212" cy="64" r="24" fill="currentColor" fillOpacity="0.035" />
+              <circle cx="128" cy="192" r="16" fill="currentColor" fillOpacity="0.032" />
+              <circle cx="46" cy="126" r="10" fill="currentColor" fillOpacity="0.028" />
+              <circle cx="560" cy="244" r="56" fill="currentColor" fillOpacity="0.04" />
+              <circle cx="516" cy="22" r="16" fill="currentColor" fillOpacity="0.032" />
+            </svg>
             <div className="hero-copy">
               <h2>
                 <Link to={to}>{book.title}</Link>

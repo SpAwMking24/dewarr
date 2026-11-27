@@ -311,6 +311,14 @@ a {
 }
 .discovery-shelf {
   gap: 20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.discovery-shelf::-webkit-scrollbar,
+.nn-authors::-webkit-scrollbar,
+.nn-carousel::-webkit-scrollbar,
+.hero-row::-webkit-scrollbar {
+  display: none;
 }
 .book-cover,
 .request-cover,
@@ -518,7 +526,8 @@ a {
   gap: 28px;
   overflow-x: auto;
   padding: 18px 8px 16px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .nn-carousel-item {
   display: flex;
@@ -820,6 +829,9 @@ a {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 27rem), 1fr));
   gap: 20px;
   margin-bottom: 34px;
+  overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .hero-card {
   position: relative;
@@ -829,14 +841,23 @@ a {
   gap: 22px;
   padding: 24px 24px 24px 28px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
-  background:
-    radial-gradient(20rem 14rem at 88% 28%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
-    var(--surface);
+  border: none;
+  background: var(--surface);
   box-shadow: var(--glass-shadow);
   overflow: hidden;
 }
+.hero-circles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--text);
+  pointer-events: none;
+  z-index: 0;
+}
 .hero-copy {
+  position: relative;
+  z-index: 1;
   min-width: 0;
 }
 .hero-copy h2 {
@@ -964,6 +985,7 @@ a {
 
 .hero-cover {
   position: relative;
+  z-index: 1;
   display: block;
   transition: transform 220ms;
 }
@@ -1032,7 +1054,8 @@ a {
   gap: 24px;
   overflow-x: auto;
   padding: 4px 2px 8px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .nn-author {
   display: flex;
@@ -1048,6 +1071,7 @@ a {
   width: 72px;
   height: 72px;
   border-radius: 999px;
+  overflow: hidden;
   display: grid;
   place-items: center;
   background: linear-gradient(145deg, var(--surface-2), var(--surface));
@@ -1058,6 +1082,12 @@ a {
   letter-spacing: 0.03em;
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
   transition: transform 180ms, border-color 180ms;
+}
+.nn-author-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .nn-author:hover .nn-author-avatar {
   transform: translateY(-4px);

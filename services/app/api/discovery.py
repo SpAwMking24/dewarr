@@ -22,12 +22,19 @@ from app.domain.work_graph import family_ids
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
+class DiscoveryAuthor(BaseModel):
+    name: str
+    external_id: str | None = None
+    image_url: str | None = None
+
+
 class DiscoveryTitle(BaseModel):
     rating: float | None = Field(default=None, ge=0, le=5, allow_inf_nan=False)
     provider: Literal["hardcover", "local"]
     external_id: str | None = None
     title: str
     authors: list[str]
+    author_profiles: list[DiscoveryAuthor] = Field(default_factory=list)
     cover_url: str | None = None
     publication_year: int | None = None
     release_date: date | None = None
