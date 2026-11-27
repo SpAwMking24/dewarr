@@ -177,13 +177,13 @@ async def retry_held(db, attempt):
         await download_reviews.validate_inspection(db, inspection.id)
         if await download_reviews.has_imports(db, inspection.id):
             return
-        # Re-run a failed byte inspection after a parser fix. Reusing the old
+        # Re-run a failed byte inspection after a parser fix, even when other
+        # files in a bundle were readable. Reusing the old
         # empty grouping would strand a valid, already-downloaded book forever.
         # Never replace evidence underneath a saved grouping or frozen plan.
         snapshot = inspection.snapshot or {}
         if (
-            not snapshot.get("groups")
-            and any(
+            any(
                 file.get("state") == "held" and not is_extra(file["path"])
                 for file in snapshot.get("files", [])
             )

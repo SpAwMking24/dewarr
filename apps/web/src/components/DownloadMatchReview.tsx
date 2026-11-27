@@ -129,8 +129,8 @@ export default function DownloadMatchReview({
   // itself, once per download, instead of asking for a manual choice.
   const autoRetried = useRef<string | null>(null);
   const multipleGroups =
-    !unreadable.length &&
-    (data?.grouping.content.groups.length || 0) > 1 &&
+    (unreadable.length > 0 ||
+      (data?.grouping.content.groups.length || 0) > 1) &&
     download.can_retry;
   useEffect(() => {
     if (multipleGroups && !retrying && autoRetried.current !== inspection.id) {
