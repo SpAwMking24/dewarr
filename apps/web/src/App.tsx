@@ -55,6 +55,26 @@ const ImportReview = lazy(() => import("./pages/ImportReview"));
 const LibraryReview = lazy(() => import("./pages/LibraryReview"));
 const Recovery = lazy(() => import("./pages/Recovery"));
 
+function ThemeToggle() {
+  const [theme, setTheme] = useState(
+    () => document.documentElement.dataset.theme || "dark",
+  );
+  return (
+    <button
+      type="button"
+      className="nav-theme"
+      onClick={() => {
+        const next = theme === "light" ? "dark" : "light";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("dewarr:theme", next);
+        setTheme(next);
+      }}
+    >
+      {theme === "light" ? "Dark theme" : "Light theme"}
+    </button>
+  );
+}
+
 export default function App() {
   const client = useQueryClient();
   useEffect(() => {
@@ -451,8 +471,7 @@ function Shell({ auth }: { auth: Auth }) {
         >
           <LogOut size={18} />
         </button>
-        <p className="nav-caption">YOUR COLLECTION</p>
-        <nav
+                <nav
           id="main-navigation"
           aria-label="Main navigation"
           onClick={(event) => {
@@ -464,16 +483,37 @@ function Shell({ auth }: { auth: Auth }) {
             <Compass size={19} />
             Discover
           </NavLink>
+          <NavLink to="/library" end>
+            <BookOpen size={19} />
+            Library
+          </NavLink>
+          <NavLink
+            to="/requests"
+            aria-label="Downloads"
+            title={`${waiting} active requests`}
+          >
+            <Download size={19} />
+            Downloads
+            {waiting > 0 && (
+              <span className="nav-count">
+                {waiting > 99 ? "99+" : waiting}
+                <span className="sr-only"> active requests</span>
+              </span>
+            )}
+          </NavLink>
+          <NavLink to="/settings">
+            <Settings size={19} />
+            Settings
+          </NavLink>
+          {(canEdit || admin) && (
+            <details className="nav-more">
+              <summary>More</summary>
           {canEdit && (
             <NavLink to="/following">
               <ListPlus size={19} />
               Following
             </NavLink>
           )}
-          <NavLink to="/library" end>
-            <BookOpen size={19} />
-            My Library
-          </NavLink>
           {admin && (
             <NavLink to="/review">
               <ListChecks size={19} />
@@ -486,25 +526,10 @@ function Shell({ auth }: { auth: Auth }) {
               )}
             </NavLink>
           )}
-          <NavLink
-            to="/requests"
-            aria-label="Requests"
-            title={`${waiting} active requests`}
-          >
-            <Download size={19} />
-            Requests
-            {waiting > 0 && (
-              <span className="nav-count">
-                {waiting > 99 ? "99+" : waiting}
-                <span className="sr-only"> active requests</span>
-              </span>
-            )}
-          </NavLink>
-          <NavLink to="/settings">
-            <Settings size={19} />
-            Settings
-          </NavLink>
+            </details>
+          )}
         </nav>
+        <ThemeToggle />
         <div className="sidebar-bottom">
           <div className="avatar">
             {auth.user.display_name.slice(0, 1).toUpperCase()}

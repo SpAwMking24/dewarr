@@ -5,7 +5,10 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import SelectMenu from "./components/SelectMenu";
 import "./app.css";
-import "./glass.css";
+import "./premium.css";
+
+document.documentElement.dataset.theme =
+  localStorage.getItem("dewarr:theme") === "light" ? "light" : "dark";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: false } },

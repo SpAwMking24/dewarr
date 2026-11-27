@@ -1,0 +1,353 @@
+/* Premium theme: charcoal and champagne gold, dark by default, with a light mode.
+   Unlayered on purpose so it overrides the layered page styles. */
+:root,
+:root[data-theme="dark"] {
+  --bg: #111113;
+  --bg-2: #17171a;
+  --surface: #1a1a1e;
+  --surface-2: #222227;
+  --panel: #1d1d21;
+  --text: #f1ece2;
+  --muted: #a39f95;
+  --line: #2b2b31;
+  --accent: #d4b87a;
+  --accent-strong: #c9a96a;
+  --accent-ink: #1a1408;
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --glass-line: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --radius: 18px;
+  --radius-sm: 12px;
+  color: var(--text);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f6f3ed;
+  --bg-2: #efeae1;
+  --surface: #ffffff;
+  --surface-2: #f1ece3;
+  --panel: #ffffff;
+  --text: #1d1a15;
+  --muted: #6d675c;
+  --line: #e2dacb;
+  --accent: #9a7a37;
+  --accent-strong: #8a6c2c;
+  --accent-ink: #fffaf0;
+  --glass: rgba(255, 255, 255, 0.85);
+  --glass-strong: #ffffff;
+  --glass-line: #e2dacb;
+  --glass-shadow: 0 10px 28px rgba(60, 45, 20, 0.1);
+  color-scheme: light;
+}
+html {
+  background: var(--bg);
+}
+body {
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(52rem 34rem at 85% -8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+  letter-spacing: -0.005em;
+}
+h1,
+h2,
+h3 {
+  color: var(--text);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.muted,
+label small {
+  color: var(--muted);
+}
+.eyebrow,
+.brand svg {
+  color: var(--accent);
+}
+
+/* Surfaces */
+.panel,
+.request-row,
+.request-progress-card,
+.notice,
+.download-review,
+.discovery-section,
+.library-filters,
+.followed-list-card,
+.book-detail .panel,
+.list-refresh-menu,
+.application-release-dialog,
+dialog,
+[role="dialog"],
+details.panel,
+.recovery-panel,
+.source-table-scroll,
+.listen-embedded {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+}
+.request-row {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  transition: border-color 160ms, background 160ms;
+}
+.request-row:hover,
+.request-row:focus-within {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Navigation */
+.sidebar {
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+}
+.nav-caption {
+  display: none;
+}
+.sidebar .brand {
+  color: var(--text);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-weight: 600;
+}
+nav a {
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  transition: background 150ms, color 150ms;
+}
+nav a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+nav a.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent);
+  box-shadow: none;
+}
+.nav-count,
+nav a.active .nav-count {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.nav-more {
+  margin-top: 6px;
+}
+.nav-more summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 15px;
+}
+.nav-more[open] summary {
+  color: var(--text);
+}
+.nav-theme {
+  margin: 10px 0 0;
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+.topbar {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-bottom: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.topbar .search {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.topbar .search input {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+}
+.avatar {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Controls */
+button {
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  transition: background 150ms, border-color 150ms, transform 120ms;
+}
+button:hover {
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--accent) 14%);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+button:active {
+  transform: scale(0.98);
+}
+button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: transparent;
+  color: var(--accent-ink);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+button.primary:hover {
+  filter: brightness(1.08);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+input,
+select,
+textarea {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+  outline: none;
+}
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 70%, transparent);
+}
+a {
+  color: inherit;
+}
+
+/* Covers: large, quiet, lifted on hover */
+.book-grid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 36px 28px;
+}
+.book-cover,
+.request-cover,
+.detail-cover {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.book-card .book-cover {
+  transition: transform 200ms, box-shadow 200ms, border-color 200ms;
+}
+.book-card:hover .book-cover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.45);
+}
+.nav-count,
+.request-status,
+.request-medium {
+  border-radius: 999px;
+}
+.source-table th,
+.source-table td {
+  border-color: var(--line);
+}
+
+/* Player */
+.listen-page {
+  background: transparent;
+}
+.listen-cover {
+  border-radius: 22px;
+}
+.listen-embedded {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+.listen-chapters {
+  background: rgba(15, 21, 38, 0.8);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+.listen-bar {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: 22px;
+  padding: 0.6rem;
+}
+.listen-controls .listen-play {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: var(--accent-ink);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+.listen-page {
+  color: var(--text);
+}
+.listen-top,
+.listen-bar,
+.listen-embedded-head {
+  border-color: var(--line);
+}
+.listen-seek {
+  accent-color: var(--accent);
+}
+.listen-authors,
+.listen-times,
+.listen-timeline,
+.listen-remaining,
+.listen-chapter small,
+.listen-title small,
+.listen-chapters small,
+.listen-chapters-inline small {
+  color: var(--muted);
+}
+.listen-bar button,
+.listen-chapter {
+  color: var(--text);
+}
+.listen-bar button strong {
+  color: var(--text);
+}
+.listen-bar button:hover span,
+.listen-bar button:hover strong,
+.listen-chapters li button:hover,
+.listen-chapters li button[aria-current="true"],
+.listen-chapters-inline li button:hover,
+.listen-chapters-inline li button[aria-current="true"] {
+  color: var(--accent);
+}
+.listen-chapters li button:hover,
+.listen-chapters li button[aria-current="true"],
+.listen-chapters-inline li button:hover,
+.listen-chapters-inline li button[aria-current="true"] {
+  background: var(--surface-2);
+}
+.listen-chapters {
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+.listen-controls .listen-skip {
+  color: var(--text);
+}
+.listen-icon {
+  border-color: var(--line);
+}
