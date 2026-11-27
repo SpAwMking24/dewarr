@@ -29,6 +29,7 @@ import FollowedLists, {
   PersonalListPage,
   PersonalRow,
 } from "../components/FollowedLists";
+import DiscoverHero from "../components/DiscoverHero";
 import DeferredShelf from "../components/DeferredShelf";
 import DiscoveryShelf from "../components/DiscoveryShelf";
 import ShelfPagination from "../components/ShelfPagination";
@@ -345,6 +346,7 @@ function Home({ canEdit }: { canEdit: boolean }) {
           sources.collections.error
         }
       />
+      {account.data?.enabled && <DiscoverHero />}
       {(index.isPending || (!index.error && layout.isPending)) && <Loading />}
       {!layout.isPending &&
         rows
