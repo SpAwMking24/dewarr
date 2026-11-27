@@ -1,9 +1,9 @@
 import type { ReactNode, Ref } from "react";
 import { Link } from "react-router-dom";
+import { Plus } from "lucide-react";
 import type { Work } from "../api/client";
 import type { components } from "../api/schema";
 import BookCover from "./BookCover";
-import { languageName } from "./LanguageSelect";
 import { HardcoverRating } from "./BookReaderDetails";
 
 type ReaderDetails = components["schemas"]["ReaderDetails"];
@@ -19,30 +19,16 @@ export function releaseIsAhead(
   return typeof year === "number" && year > Number(today.slice(0, 4));
 }
 
-function publicationFact(releaseDate?: string | null, year?: number | null) {
-  const dated =
-    releaseDate && releaseDate.length >= 10 ? releaseDate.slice(0, 10) : null;
-  const ahead = releaseIsAhead(releaseDate, year);
-  return {
-    label: ahead ? "Release date" : "First published",
-    showDate: !!dated && (ahead || !year || dated.startsWith(String(year))),
-  };
-}
-
 export function BookHero({
   title,
   providerBook,
   authors,
   work,
   cover,
-  caption,
-  eyebrow,
   series,
   details,
-  year,
-  language,
-  editions,
-  editionsMore,
+  description,
+  onAddToList,
   headingRef,
   authorFollow,
   children,
@@ -52,10 +38,12 @@ export function BookHero({
   authors: string[];
   work?: Work | null;
   cover?: string | null;
-  caption: string;
-  eyebrow: string;
+  caption?: string;
+  eyebrow?: string;
   series?: ReactNode;
   details?: ReaderDetails;
+  description?: string | null;
+  onAddToList?: () => void;
   year?: number | null;
   language?: string | null;
   editions?: number;
@@ -70,9 +58,9 @@ export function BookHero({
   const splitTitle = longTitle && colon > 5 && colon < 90;
   const headline = splitTitle ? title.slice(0, colon) : title;
   const subtitle = splitTitle ? title.slice(colon + 2) : null;
-  const published = publicationFact(details?.release_date, year);
+  const blurb = description || work?.description || null;
   return (
-    <header className="reader-hero book-detail-hero">
+    <header className="reader-hero book-detail-hero nn-book-card">
       <div className="reader-cover-wrap">
         <BookCover
           detail
@@ -83,22 +71,34 @@ export function BookHero({
           work={work}
           rating={details?.rating}
         />
-        <span className="reader-cover-caption">{caption}</span>
       </div>
       <div className="reader-hero-copy">
-        <p className="eyebrow">{eyebrow}</p>
         {series}
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className={longTitle && !splitTitle ? "reader-title-long" : undefined}
-          title={title}
-          aria-label={title}
-        >
-          {headline}
-        </h1>
+        <div className="nn-book-title-row">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className={longTitle && !splitTitle ? "reader-title-long" : undefined}
+            title={title}
+            aria-label={title}
+          >
+            {headline}
+          </h1>
+          {onAddToList && (
+            <button
+              type="button"
+              className="nn-book-diamond"
+              onClick={onAddToList}
+              aria-label="Add to reading list"
+              title="Add to reading list"
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
+          )}
+        </div>
         {subtitle && <p className="reader-subtitle">{subtitle}</p>}
-        <div className="author-line">
+        <div className="author-line nn-book-author">
+          <span>Written by : </span>
           {authors.length
             ? authors.map((name, index) => (
                 <span key={`${name}:${index}`}>
@@ -121,85 +121,13 @@ export function BookHero({
             : "Author unknown"}
           {authorFollow}
         </div>
-        {work?.availability.audio && (
+        {work?.availability.audio && work.availability.primary_audio_narrators?.length ? (
           <p className="narrator-line">
-            {work.availability.primary_audio_narrators?.length
-              ? `Narrated by ${work.availability.primary_audio_narrators.join(", ")}`
-              : "Narrator not supplied"}
-            {(work.availability.audio_versions || 0) > 1 && (
-              <Link
-                className="version-count"
-                to={`/books/${work.id}?tab=library&format=audio`}
-                aria-label="View other audiobook recordings"
-              >
-                +{work.availability.audio_versions! - 1}
-              </Link>
-            )}
+            Narrated by {work.availability.primary_audio_narrators.join(", ")}
           </p>
-        )}
-        {!!work?.availability.parts_total && (
-          <p className="narrator-line">
-            {work.availability.parts_owned} of {work.availability.parts_total}{" "}
-            {work.availability.parts_medium === "ebook" ? "ebook" : "audiobook"}{" "}
-            parts in your library ·{" "}
-            <Link to={`/books/${work.id}?tab=library`}>see which</Link>
-          </p>
-        )}
+        ) : null}
         <HardcoverRating details={details} />
-        <dl className="reader-facts">
-          {(year || details?.release_date) && (
-            <div>
-              <dt>{published.label}</dt>
-              <dd>
-                {published.showDate && details?.release_date ? (
-                  <time dateTime={details.release_date}>
-                    {new Date(details.release_date).toLocaleDateString(
-                      undefined,
-                      {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        timeZone: "UTC",
-                      },
-                    )}
-                  </time>
-                ) : (
-                  year
-                )}
-              </dd>
-            </div>
-          )}
-          {!!details?.pages && (
-            <div>
-              <dt>Pages</dt>
-              <dd>{details.pages.toLocaleString()}</dd>
-            </div>
-          )}
-          {!!details?.audio_seconds && (
-            <div>
-              <dt>Audio length</dt>
-              <dd>
-                {Math.floor(details.audio_seconds / 3600)}h{" "}
-                {Math.floor((details.audio_seconds % 3600) / 60)}m
-              </dd>
-            </div>
-          )}
-          {editions !== undefined && (
-            <div>
-              <dt>Editions</dt>
-              <dd>
-                {editions}
-                {editionsMore ? "+" : ""}
-              </dd>
-            </div>
-          )}
-          {language && (
-            <div>
-              <dt>Language</dt>
-              <dd>{languageName(language)}</dd>
-            </div>
-          )}
-        </dl>
+        {blurb && <p className="nn-book-synopsis">{blurb}</p>}
         {children}
       </div>
     </header>

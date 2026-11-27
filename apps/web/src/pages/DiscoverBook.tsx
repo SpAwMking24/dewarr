@@ -13,7 +13,6 @@ import LibraryFormatBadges from "../components/LibraryFormatBadges";
 import { languageName } from "../components/LanguageSelect";
 import {
   BookHero,
-  BookOverview,
   releaseIsAhead,
 } from "../components/BookPresentation";
 import FollowRelease, { useReleaseWatch } from "../components/FollowRelease";
@@ -258,13 +257,8 @@ function BookPage({
             authors={book.authors || []}
             work={work}
             cover={book.cover_url}
-            caption={`${sourceName} edition`}
-            eyebrow={`DISCOVER / ${sourceName.toUpperCase()}`}
+            description={book.description}
             details={community.data}
-            year={book.publication_year}
-            language={book.language}
-            editions={editions.length}
-            editionsMore={book.editions_more}
             headingRef={heading}
             series={
               <>
@@ -459,7 +453,9 @@ function BookPage({
               </p>
             )}
           </BookHero>
-          <DetailTabs tabs={tabs} selected={tab} label="Book sections" />
+          {tab !== "overview" && (
+            <DetailTabs tabs={tabs} selected={tab} label="Book sections" />
+          )}
           {canEdit && work && (action === "request" || action === "list") && (
             <section
               ref={actionPanel}
@@ -512,18 +508,13 @@ function BookPage({
               )}
             </section>
           )}
+          {tab !== "overview" && (
           <div
             id="detail-tab-panel"
             role="tabpanel"
             aria-labelledby={`detail-tab-${tab}`}
             tabIndex={0}
           >
-            {tab === "overview" && (
-              <BookOverview
-                description={book.description}
-                subjects={book.subjects}
-              />
-            )}
             <section
               hidden={tab !== "editions"}
               id="editions"
@@ -642,6 +633,7 @@ function BookPage({
               />
             )}
           </div>
+          )}
         </>
       )}
     </article>

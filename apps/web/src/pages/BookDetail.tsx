@@ -1,7 +1,6 @@
 import { ReturnLink } from "../components/NavigationContinuity";
 import ContentSkeleton from "../components/ContentSkeleton";
 import { AuthorFollows } from "../components/FollowCatalog";
-import BookSourceIcon from "../components/BookSourceIcon";
 import QuickAdd from "../components/QuickAdd";
 import { EmbeddedAudiobook } from "./AudiobookPlayer";
 import BookGrouping from "../components/BookGrouping";
@@ -239,24 +238,16 @@ function BookDetailContent({
         authors={work.authors}
         work={work}
         cover={cover}
-        caption={
-          work.availability.owned
-            ? "In your library"
-            : watching
-              ? "Waiting for release"
-              : "Saved in your catalog"
+        description={description}
+        onAddToList={
+          canEdit
+            ? () => {
+                add.reset();
+                setAction("list");
+              }
+            : undefined
         }
-        eyebrow={work.availability.owned ? "YOUR LIBRARY" : "YOUR CATALOG"}
         details={community.data}
-        year={year}
-        language={work.language || source?.book?.language}
-        editions={
-          matchedBook?.editions?.length ?? metadata.data?.versions_total
-        }
-        editionsMore={
-          matchedBook?.editions_more ??
-          metadata.data?.sources.some((item) => item.editions_more)
-        }
         headingRef={heading}
         authorFollow={
           canEdit && !!community.data?.authors?.length ? (
@@ -273,8 +264,7 @@ function BookDetailContent({
                     to={`/series/hardcover/${item.external_id}`}
                   >
                     {item.name}
-                    {item.position ? ` · Book ${item.position}` : ""} · View
-                    series
+                    {item.position ? ` · Book ${item.position}` : ""}
                   </Link>
                 ) : (
                   <span key={item.external_id}>{item.name}</span>
@@ -284,42 +274,32 @@ function BookDetailContent({
           )
         }
       >
-        <div className="status-row">
-          {unreleased && !work.availability.owned && (
-            <span className="status">
-              {watching ? "Waiting for release" : "In your catalog"}
-            </span>
-          )}
-          {work.availability.stale && (
-            <span className="muted">Last known availability</span>
-          )}
-        </div>
-        <div className="reader-actions">
-          {readableEbook.data && (
-            <Link
-              className="button-link format-action"
-              to={`/read/${readableEbook.data.asset_id}`}
-            >
-              <BookOpen size={16} aria-hidden="true" />
-              {readableEbook.data.progress &&
-              readableEbook.data.progress.fraction > 0.01
-                ? `Continue reading · ${Math.round(readableEbook.data.progress.fraction * 100)}%`
-                : "Read ebook"}
-            </Link>
-          )}
+        <div className="reader-actions nn-book-actions">
           {listenableAudio.data && (
             <button
               type="button"
-              className="button-link format-action"
+              className="nn-pill-btn"
               aria-pressed={listening}
               onClick={() => setListening((open) => !open)}
             >
               <Headphones size={16} aria-hidden="true" />
               {listenableAudio.data.progress &&
               listenableAudio.data.progress.fraction > 0.01
-                ? `Continue listening · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
-                : "Listen"}
+                ? `Play Audio · ${Math.round(listenableAudio.data.progress.fraction * 100)}%`
+                : "Play Audio"}
             </button>
+          )}
+          {readableEbook.data && (
+            <Link
+              className="nn-pill-btn"
+              to={`/read/${readableEbook.data.asset_id}`}
+            >
+              <BookOpen size={16} aria-hidden="true" />
+              {readableEbook.data.progress &&
+              readableEbook.data.progress.fraction > 0.01
+                ? `Continue Reading · ${Math.round(readableEbook.data.progress.fraction * 100)}%`
+                : "Start Reading"}
+            </Link>
           )}
           {canEdit &&
             (unreleased ? (
@@ -349,72 +329,9 @@ function BookDetailContent({
                 }}
               />
             ))}
-          {canEdit && (
-            <button
-              onClick={() => {
-                add.reset();
-                setAction("list");
-              }}
-            >
-              Add to reading list
-            </button>
-          )}
-          <div className="reader-outbound">
-            {hardcover && (
-              <a
-                href={`https://hardcover.app/books/${encodeURIComponent(community.data?.slug || hardcover.external_id)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <BookSourceIcon source="Hardcover" />
-              </a>
-            )}
-            {source?.provider === "openlibrary" && (
-              <a
-                href={`https://openlibrary.org/works/${encodeURIComponent(source.external_id)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <BookSourceIcon source="Open Library" />
-              </a>
-            )}
-            <a
-              href={`https://www.goodreads.com/search?q=${encodeURIComponent(`${work.title} ${work.authors[0] || ""}`)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <BookSourceIcon source="Goodreads" />
-            </a>
-          </div>
         </div>
-        {canEdit && unreleased && !work.availability.owned && (
-          <p className="muted reader-action-note">
-            {watching ? (
-              <>
-                A request is saved and searching starts on the release day. It
-                is listed in <Link to="/requests">Requests</Link>. This book is
-                under <Link to="/library?view=saved">All saved titles</Link>,
-                not in your library copies. Waiting for release stops that
-                request.
-              </>
-            ) : (
-              <>
-                Saved in your catalog only. It is not in your library, and it is
-                not in Requests until you request the release day. Find it under{" "}
-                <Link to="/library?view=saved">All saved titles</Link>.
-              </>
-            )}
-          </p>
-        )}
-        {(metadata.isPending ||
-          matching ||
-          (hardcover && community.isPending)) && (
-          <p className="muted book-detail-loading" role="status">
-            Loading book details…
-          </p>
-        )}
       </BookHero>
-      {tab !== "manage" && (
+      {tab === "manage" && (
         <BookDetailsStatus
           reason={match.data?.reason}
           workId={id}
@@ -448,65 +365,13 @@ function BookDetailContent({
           assetId={listenableAudio.data.asset_id}
           onClose={() => setListening(false)}
         />
-      ) : (
-        <>
-          <nav
-            className="reader-nav book-tabs"
-            role="tablist"
-            aria-label="Book sections"
-            onKeyDown={(event) => {
-              if (
-                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              )
-                return;
-              const links = [
-                ...event.currentTarget.querySelectorAll<HTMLAnchorElement>(
-                  '[role="tab"]',
-                ),
-              ];
-              const index = links.indexOf(
-                document.activeElement as HTMLAnchorElement,
-              );
-              const next =
-                event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? links.length - 1
-                    : (index +
-                        (event.key === "ArrowRight" ? 1 : -1) +
-                        links.length) %
-                      links.length;
-              event.preventDefault();
-              links[next].focus();
-              links[next].click();
-            }}
-          >
-            {tabs.map(([key, label]) => (
-              <Link
-                key={key}
-                id={`tab-${key}`}
-                role="tab"
-                aria-selected={tab === key}
-                tabIndex={
-                  tab === key || (tab === "manage" && key === "overview")
-                    ? 0
-                    : -1
-                }
-                aria-controls="book-tab-panel"
-                to={href(key)}
-                state={location.state}
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <div
-            id="book-tab-panel"
-            role="tabpanel"
-            aria-labelledby={tab === "manage" ? undefined : `tab-${tab}`}
-            aria-label={tab === "manage" ? "Book metadata" : undefined}
-            tabIndex={0}
-          >
+      ) : tab !== "overview" ? (
+        <div
+          id="book-tab-panel"
+          role="tabpanel"
+          aria-label={tab === "manage" ? "Book metadata" : "Book section"}
+          tabIndex={0}
+        >
             {tab === "overview" && (
               <>
                 {!description &&
@@ -629,9 +494,8 @@ function BookDetailContent({
                 )}
               </section>
             )}
-          </div>
-        </>
-      )}
+        </div>
+      ) : null}
       {canEdit && action && (
         <BookDialog
           title={action === "list" ? "Add to reading list" : "Request book"}
