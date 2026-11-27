@@ -550,3 +550,13 @@ a {
   color: var(--accent);
   font-size: 13px;
 }
+
+/* Discover: search first, with E-book / Audiobook tabs */
+.format-tabs { display: flex; gap: 28px; margin: 0 0 14px; border-bottom: 1px solid var(--line, rgba(255,255,255,.12)); }
+.format-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 2px; margin-bottom: -1px; color: var(--muted, #a89f90); font-size: 1rem; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; box-shadow: none; }
+.format-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.discover-search { margin: 4px 0 26px; }
+.discover-search form { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px; border-radius: 999px; border: 1px solid var(--line, rgba(255,255,255,.14)); background: var(--surface, rgba(255,255,255,.05)); }
+.discover-search form:focus-within { border-color: var(--accent); }
+.discover-search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; box-shadow: none; font-size: 1.1rem; color: inherit; padding: 10px 0; }
+.discover-search button.hero-button { padding: 10px 26px; }

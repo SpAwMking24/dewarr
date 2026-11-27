@@ -1,3 +1,7 @@
+import {
+  savedFormat,
+  searchUrl,
+} from "./components/SearchFormatTabs";
 import NavigationContinuity from "./components/NavigationContinuity";
 import ContentSkeleton from "./components/ContentSkeleton";
 import ConnectionHealth from "./components/ConnectionHealth";
@@ -427,7 +431,7 @@ function Shell({ auth }: { auth: Auth }) {
   });
   function searchSubmit(event: FormEvent) {
     event.preventDefault();
-    navigate("/search?q=" + encodeURIComponent(search.trim()));
+    navigate(searchUrl(search, savedFormat()));
   }
   if (
     auth.user.onboarding_status === "pending" &&
@@ -471,7 +475,7 @@ function Shell({ auth }: { auth: Auth }) {
         >
           <LogOut size={18} />
         </button>
-                <nav
+        <nav
           id="main-navigation"
           aria-label="Main navigation"
           onClick={(event) => {
@@ -508,24 +512,24 @@ function Shell({ auth }: { auth: Auth }) {
           {(canEdit || admin) && (
             <details className="nav-more">
               <summary>More</summary>
-          {canEdit && (
-            <NavLink to="/following">
-              <ListPlus size={19} />
-              Following
-            </NavLink>
-          )}
-          {admin && (
-            <NavLink to="/review">
-              <ListChecks size={19} />
-              Library review
-              {reviewing > 0 && (
-                <span className="nav-count">
-                  {reviewing > 99 ? "99+" : reviewing}
-                  <span className="sr-only"> library items to review</span>
-                </span>
+              {canEdit && (
+                <NavLink to="/following">
+                  <ListPlus size={19} />
+                  Following
+                </NavLink>
               )}
-            </NavLink>
-          )}
+              {admin && (
+                <NavLink to="/review">
+                  <ListChecks size={19} />
+                  Library review
+                  {reviewing > 0 && (
+                    <span className="nav-count">
+                      {reviewing > 99 ? "99+" : reviewing}
+                      <span className="sr-only"> library items to review</span>
+                    </span>
+                  )}
+                </NavLink>
+              )}
             </details>
           )}
         </nav>
@@ -551,17 +555,22 @@ function Shell({ auth }: { auth: Auth }) {
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <form className="search" role="search" onSubmit={searchSubmit}>
-            <Search size={18} aria-hidden="true" />
-            <input
-              aria-label="Search books or authors"
-              placeholder="Search books or authors"
-              maxLength={300}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <button type="submit">Search</button>
-          </form>
+          {!(
+            location.pathname === "/discover" &&
+            !new URLSearchParams(location.search).get("view")
+          ) && (
+            <form className="search" role="search" onSubmit={searchSubmit}>
+              <Search size={18} aria-hidden="true" />
+              <input
+                aria-label="Search books or authors"
+                placeholder="Search books or authors"
+                maxLength={300}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <button type="submit">Search</button>
+            </form>
+          )}
           <div className="topbar-actions">
             <ConnectionHealth />
             {auth.user.role !== "viewer" &&

@@ -12,6 +12,9 @@ import { Check, Search } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, result } from "../api/client";
 import type { components } from "../api/schema";
+import SearchFormatTabs, {
+  rememberFormat,
+} from "../components/SearchFormatTabs";
 import { BookCard, Empty, Loading, Notice } from "../components";
 
 type Book = components["schemas"]["BookData"];
@@ -141,6 +144,18 @@ export default function ProviderSearch({
         </div>
       )}
       {embedded && <h3>Find the correct catalog record</h3>}
+      {!embedded && (
+        <SearchFormatTabs
+          value={provider === "audible" ? "audiobook" : "ebook"}
+          onChange={(format) => {
+            rememberFormat(format);
+            setParams({
+              q: input.trim() || q,
+              provider: format === "audiobook" ? "audible" : "automatic",
+            });
+          }}
+        />
+      )}
       <form
         className="panel library-filters catalog-search-form"
         onSubmit={(event) => {
