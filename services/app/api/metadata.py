@@ -298,6 +298,7 @@ async def save_preferences(body: MetadataPreferences, user: Admin, db: Database)
 
 class MetadataSearchPage(SearchPage):
     known_works: dict[str, WorkView] = Field(default_factory=dict)
+    did_you_mean: str | None = None
 
 
 async def known_works(db, user, provider, external_ids, books=None):
@@ -343,6 +344,16 @@ async def search(
 ):
     if not q.strip():
         raise HTTPException(422, "Enter a title, author or identifier")
+    import asyncio
+
+    from app.domain.smart_search import (
+        apple_suggestions,
+        corrected_query,
+        is_identifier_query,
+        score_book,
+    )
+
+    raw_q = q.strip()
     user_id = user.id
     selected = provider
     settings = await preferences(db)
@@ -351,23 +362,74 @@ async def search(
         account = await db.get(CatalogAccount, user_id)
         selected = settings.primary if account and account.enabled else "openlibrary"
     warning = None
+    # Query Apple's public audiobook API in parallel to fix typos without extra waiting.
+    suggestions_task = (
+        asyncio.create_task(apple_suggestions(raw_q))
+        if page == 1 and not is_identifier_query(raw_q)
+        else None
+    )
     try:
         result, stale, warning = await provider_call(
-            db, user_id, selected, "search", q.strip(), page, language
+            db, user_id, selected, "search", raw_q, page, language
         )
     except AdapterError as error:
         if provider != "automatic" or selected != "hardcover":
+            if suggestions_task:
+                suggestions_task.cancel()
             raise adapter_http_error(error) from error
         try:
             result, stale, _ = await provider_call(
-                db, user_id, "openlibrary", "search", q.strip(), page, language
+                db, user_id, "openlibrary", "search", raw_q, page, language
             )
             warning = "Hardcover is unavailable; showing Open Library results. " + str(error)
         except AdapterError as fallback_error:
+            if suggestions_task:
+                suggestions_task.cancel()
             raise adapter_http_error(fallback_error) from fallback_error
+
+    did_you_mean: str | None = None
+    if suggestions_task is not None:
+        try:
+            suggestions = await suggestions_task
+        except Exception:
+            suggestions = []
+        did_you_mean = corrected_query(raw_q, suggestions)
+        if did_you_mean:
+            best_literal = max(
+                (score_book(raw_q, item.title, item.authors) for item in result.items),
+                default=0.0,
+            )
+            if len(result.items) < 5 or best_literal < 78.0:
+                try:
+                    corrected_res, corrected_stale, _ = await provider_call(
+                        db, user_id, result.provider, "search", did_you_mean, page, language
+                    )
+                except AdapterError:
+                    corrected_res, corrected_stale = None, True
+                if corrected_res and corrected_res.items and not corrected_stale:
+                    seen: set[tuple[str, str]] = set()
+                    merged = []
+                    for item in (*corrected_res.items, *result.items):
+                        sig = (item.provider, item.external_id)
+                        if sig not in seen:
+                            seen.add(sig)
+                            merged.append(item)
+                    merged.sort(
+                        key=lambda item: score_book(did_you_mean, item.title, item.authors),
+                        reverse=True,
+                    )
+                    result = result.model_copy(
+                        update={
+                            "items": merged,
+                            "total": max(result.total or 0, corrected_res.total or 0, len(merged)),
+                        }
+                    )
+                    stale = False
+
     if provider == "automatic" and page == 1 and not result.items and not stale:
         from app.config import get_settings
 
+        search_q = did_you_mean or raw_q
         for fallback in [
             *(["openlibrary"] if result.provider != "openlibrary" else []),
             "audible",
@@ -375,7 +437,7 @@ async def search(
         ]:
             try:
                 candidate, fallback_stale, _ = await provider_call(
-                    db, user_id, fallback, "search", q.strip(), page, language
+                    db, user_id, fallback, "search", search_q, page, language
                 )
             except AdapterError:
                 continue
@@ -390,6 +452,7 @@ async def search(
         **result.model_dump(exclude={"stale", "warning"}),
         stale=stale,
         warning=warning,
+        did_you_mean=did_you_mean,
         known_works=await known_works(
             db, user, result.provider, [book.external_id for book in result.items], result.items
         ),

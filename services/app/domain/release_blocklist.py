@@ -1,10 +1,35 @@
 """A release identity is scoped to a source/indexer, work family, and medium."""
 
+import re
+
 from sqlalchemy import select
 
 from app.db.models import ReleaseBlock
 from app.domain.work_graph import canonical_work, family_ids
 from app.importing.naming import fingerprint
+
+_HEX_V1_RE = re.compile(r"^[a-fA-F0-9]{40}$")
+_HEX_V2_RE = re.compile(r"^[a-fA-F0-9]{64}$")
+
+
+def _extract_hash_keys(mapping) -> set[str]:
+    if not isinstance(mapping, dict):
+        return set()
+    keys: set[str] = set()
+    for field in ("infohash_v1", "infohash_v2", "artifact_sha256"):
+        value = mapping.get(field)
+        if isinstance(value, str) and value.strip():
+            keys.add(field + ":" + value.strip().lower())
+    for field in ("info_hash", "infoHash", "infohash"):
+        value = mapping.get(field)
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip().lower()
+        if _HEX_V1_RE.fullmatch(cleaned):
+            keys.add("infohash_v1:" + cleaned)
+        elif _HEX_V2_RE.fullmatch(cleaned):
+            keys.add("infohash_v2:" + cleaned)
+    return keys
 
 
 def release_keys(release, descriptor=None):
@@ -14,9 +39,9 @@ def release_keys(release, descriptor=None):
         ":" + str(release["indexer_id"]) if release.get("indexer_id") else ""
     )
     keys = {"release:" + fingerprint({"source": source, "id": release["source_id"]})}
-    for field in ("infohash_v1", "infohash_v2", "artifact_sha256"):
-        if value := (descriptor or {}).get(field):
-            keys.add(field + ":" + value.lower())
+    keys.update(_extract_hash_keys(descriptor))
+    keys.update(_extract_hash_keys(release))
+    keys.update(_extract_hash_keys(release.get("details")))
     return source, sorted(keys)
 
 
@@ -67,5 +92,7 @@ async def add(db, selection, reason, actor_id, *, automatic=True):
             identities=keys,
         )
         db.add(row)
+    else:
+        row.identities = sorted(set(row.identities or ()).union(keys))
     row.reason, row.actor_id, row.automatic, row.active = reason[:300], actor_id, automatic, True
     return row

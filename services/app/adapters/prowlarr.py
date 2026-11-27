@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.adapters.contracts import AdapterError, FailureKind, Release
 from app.adapters.http import configured_url
+from app.adapters.qbittorrent import magnet_hashes
 from app.domain.catalog_network import retry_delay
 from app.domain.indexer_labels import MEDIA, indexer_language, indexer_suffixes
 from app.network_addresses import public_address
@@ -387,6 +388,22 @@ class ProwlarrClient:
                 if transport in {"torrent", "nzb"}
                 else None
             )
+            details: dict[str, str] = {}
+            raw_hash = safe_text(row.get("infoHash")).lower()
+            if re.fullmatch(r"[a-f0-9]{40}", raw_hash):
+                details["infohash_v1"] = raw_hash
+            elif re.fullmatch(r"[a-f0-9]{64}", raw_hash):
+                details["infohash_v2"] = raw_hash
+            magnet_url = row.get("magnetUrl")
+            if isinstance(magnet_url, str) and magnet_url.startswith("magnet:?"):
+                try:
+                    for h in magnet_hashes(magnet_url):
+                        if len(h) == 40 and "infohash_v1" not in details:
+                            details["infohash_v1"] = h
+                        elif len(h) == 64 and "infohash_v2" not in details:
+                            details["infohash_v2"] = h
+                except ValueError:
+                    pass
             result.append(
                 SearchHit(
                     ProwlarrRelease(
@@ -402,6 +419,7 @@ class ProwlarrClient:
                         protocol=transport,
                         observed_at=datetime.now(UTC),
                         acquisition_supported=bool(reference),
+                        details=details,
                         limitation=None
                         if reference
                         else (

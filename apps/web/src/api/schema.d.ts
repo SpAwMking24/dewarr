@@ -10577,6 +10577,8 @@ export interface components {
       stale: boolean;
       /** Warning */
       warning?: string | null;
+      /** Did You Mean */
+      did_you_mean?: string | null;
       /** Known Works */
       known_works?: {
         [key: string]: components["schemas"]["WorkView"];

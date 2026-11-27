@@ -227,6 +227,24 @@ export default function ProviderSearch({
           ) : null}
         </section>
       ) : null}
+      {query.data?.did_you_mean && (
+        <p className="muted" role="status">
+          Showing typo-corrected results for{" "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              const corrected = query.data?.did_you_mean;
+              if (!corrected) return;
+              setInput(corrected);
+              setSelected(null);
+              setParams({ q: corrected, provider });
+            }}
+          >
+            {query.data.did_you_mean}
+          </button>
+        </p>
+      )}
       {query.data?.warning && (
         <p className="notice" role="status">
           {query.data.warning}

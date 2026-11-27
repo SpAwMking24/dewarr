@@ -407,10 +407,21 @@ def parse_detail(content, base_url, path):
             if len(claimed) > 10000:
                 raise AdapterError(FailureKind.PARSER, "AudiobookBay file claims exceed the limit.")
     magnet = magnet_from_post(post)
+    hash_details = dict(release.details)
+    if magnet:
+        try:
+            for h in magnet_hashes(magnet):
+                if len(h) == 40:
+                    hash_details["infohash_v1"] = h
+                elif len(h) == 64:
+                    hash_details["infohash_v2"] = h
+        except ValueError:
+            pass
     return ABBDetail(
         release.model_copy(
             update={
                 "files": files,
+                "details": hash_details,
                 "acquisition_supported": bool(magnet),
                 "limitation": None
                 if magnet
