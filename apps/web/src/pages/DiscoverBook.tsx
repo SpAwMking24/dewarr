@@ -1,24 +1,23 @@
 import EditionFormatSelect, {
   type EditionFormat,
 } from "../components/EditionFormatSelect";
-import { ReturnLink, safeReturn } from "../components/NavigationContinuity";
+import { safeReturn } from "../components/NavigationContinuity";
 import { AuthorFollows } from "../components/FollowCatalog";
 import BookPagination from "../components/BookPagination";
 import { browseCache, refreshPending } from "../queryPolicies";
 import DetailTabs from "../components/DetailTabs";
-import BookSourceIcon from "../components/BookSourceIcon";
 import QuickAdd from "../components/QuickAdd";
 import GoodreadsBook from "../components/GoodreadsDiscoveryBook";
-import LibraryFormatBadges from "../components/LibraryFormatBadges";
 import { languageName } from "../components/LanguageSelect";
 import {
   BookHero,
   releaseIsAhead,
 } from "../components/BookPresentation";
+import RelatedCarousel from "../components/RelatedCarousel";
 import FollowRelease, { useReleaseWatch } from "../components/FollowRelease";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Check } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import {
   Link,
   useLocation,
@@ -26,8 +25,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { api, result, type Auth, type Work } from "../api/client";
-import { canStartDownload } from "../permissions";
+import { api, result, type Work } from "../api/client";
 import { Loading, Notice } from "../components";
 import BookReaderDetails, {
   useReaderDetails,
@@ -88,25 +86,7 @@ function BookPage({
     ? requestedTab
     : "overview";
   const location = useLocation();
-  const searchReturn = location.state?.search;
-  const fromSearch =
-    typeof searchReturn === "string" && searchReturn.startsWith("/search?");
   const cache = useQueryClient();
-  const session = useQuery<Auth | null>({
-    queryKey: ["session"],
-    enabled: false,
-  });
-  const canQuickAdd =
-    canStartDownload(
-      session.data?.user.permissions,
-      session.data?.user.role,
-      "ebook",
-    ) ||
-    canStartDownload(
-      session.data?.user.permissions,
-      session.data?.user.role,
-      "audio",
-    );
   const heading = useRef<HTMLHeadingElement>(null);
   const actionPanel = useRef<HTMLElement>(null);
   const [localWork, setLocalWork] = useState<Work | null>(null);
@@ -233,10 +213,6 @@ function BookPage({
   );
   return (
     <article className="reader-page">
-      <ReturnLink
-        fallback={fromSearch ? searchReturn : "/discover"}
-        label="Discover"
-      />
       <Notice error={preview.error} />
       {preview.isPending && (
         <Loading label={`Finding book details on ${sourceName}…`} />
@@ -258,6 +234,12 @@ function BookPage({
             work={work}
             cover={book.cover_url}
             description={book.description}
+            onAddToList={canEdit ? () => choose("list") : undefined}
+            authorFollow={
+              canEdit && !!community.data?.authors?.length ? (
+                <AuthorFollows authors={community.data.authors} />
+              ) : undefined
+            }
             details={community.data}
             headingRef={heading}
             series={
@@ -282,39 +264,12 @@ function BookPage({
               </>
             }
           >
-            <div className="status-row">
-              {work ? (
-                <>
-                  <span
-                    className={
-                      work.availability.owned ? "status owned" : "status"
-                    }
-                  >
-                    {work.availability.owned ? (
-                      <>
-                        <Check size={16} /> In library
-                      </>
-                    ) : watching ? (
-                      "Waiting for release"
-                    ) : (
-                      "In your catalog"
-                    )}
-                  </span>
-                  <LibraryFormatBadges work={work} />
-                  {work.availability.stale && (
-                    <span className="status">Last known availability</span>
-                  )}
-                </>
-              ) : (
-                <span className="muted">Not added to your catalog</span>
-              )}
-            </div>
-            <div className="reader-actions">
+            <div className="reader-actions nn-book-actions">
               {canEdit && (
                 <>
                   {recording ? (
                     <button
-                      className="primary"
+                      className="nn-pill-btn"
                       disabled={save.isPending}
                       onClick={() => choose("editions")}
                     >
@@ -344,115 +299,31 @@ function BookPage({
                   ) : (
                     <QuickAdd
                       workId={work?.id}
+                      owned={
+                        work
+                          ? {
+                              ebook: !!work.availability.ebook,
+                              audio: !!work.availability.audio,
+                            }
+                          : undefined
+                      }
                       resolveWork={async () => {
                         const value = await save.mutateAsync();
                         return value.id;
                       }}
                     />
                   )}
-                  <button
-                    disabled={save.isPending}
-                    onClick={() => choose("list")}
-                  >
-                    Add to reading list
-                  </button>
-                  {!!community.data?.authors?.length && (
-                    <AuthorFollows authors={community.data.authors} />
-                  )}
-                  {!unreleased && !recording && (
-                    <button
-                      disabled={save.isPending}
-                      className="source-search-action"
-                      onClick={() => choose("sources")}
-                    >
-                      Search sources
-                    </button>
-                  )}
-                  {!work && !unreleased && !recording && (
-                    <button
-                      disabled={save.isPending}
-                      onClick={() => choose("catalog")}
-                    >
-                      Save catalog entry
-                    </button>
-                  )}
                 </>
               )}
-              {work && (
-                <Link className="reader-action-link" to={`/books/${work.id}`}>
-                  Manage book
-                </Link>
-              )}
-              <div className="reader-outbound">
-                {externalUrl && (
-                  <a href={externalUrl} target="_blank" rel="noreferrer">
-                    <BookSourceIcon source={sourceName} />
-                  </a>
-                )}
-                <a
-                  href={`https://www.goodreads.com/search?q=${encodeURIComponent(`${book.title} ${book.authors?.[0] || ""}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <BookSourceIcon source="Goodreads" />
-                </a>
-              </div>
             </div>
             {save.isPending && (
               <p role="status">Adding book to your catalog…</p>
             )}
-            {canEdit && unreleased && (
-              <p className="muted reader-action-note">
-                {watching ? (
-                  <>
-                    A request is saved and searching starts on the release day.
-                    It is listed in <Link to="/requests">Requests</Link>. The
-                    book itself is under{" "}
-                    <Link to="/library?view=saved">All saved titles</Link>, not
-                    in your library copies.
-                  </>
-                ) : work ? (
-                  <>
-                    This book is saved in your catalog, but no release request
-                    was created. Request on release day adds that request. Saved
-                    titles are under{" "}
-                    <Link to="/library?view=saved">All saved titles</Link>.
-                  </>
-                ) : (
-                  <>
-                    Request on release day saves this book and adds a request.
-                    Searching starts on the release day. The request appears in{" "}
-                    <Link to="/requests">Requests</Link>, and the book appears
-                    under <Link to="/library?view=saved">All saved titles</Link>
-                    .
-                  </>
-                )}
-              </p>
-            )}
-            {canEdit && recording && (
-              <p className="muted reader-action-note">
-                Review the narrator and edition before requesting this
-                recording.
-              </p>
-            )}
-            {canEdit && !work && canQuickAdd && !unreleased && !recording && (
-              <p className="muted reader-action-note">
-                Quick add downloads using your saved preferences and adds this
-                title to your catalog.
-              </p>
-            )}
-            {!canEdit && (
-              <p className="muted">
-                You have read-only access. Ask a member to request this book.
-              </p>
-            )}
             <Notice error={save.error} />
-            {action === "catalog" && work && (
-              <p className="success" role="status">
-                Added to your catalog.
-              </p>
-            )}
           </BookHero>
+          {tab === "overview" && work && (
+            <RelatedCarousel work={work} cover={book.cover_url} />
+          )}
           {tab !== "overview" && (
             <DetailTabs tabs={tabs} selected={tab} label="Book sections" />
           )}
