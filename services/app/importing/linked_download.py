@@ -1,6 +1,8 @@
 """Use the saved book association for one complete, unambiguous download."""
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
+import re
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -53,7 +55,27 @@ def request_file_conflicts(
     return conflicts
 
 
-def agrees_with_request(work, release, facts, *, series=(), verified_titles=()):
+def _contains_phrase(haystack: str, needle: str) -> bool:
+    return bool(needle) and bool(re.search(rf"(?<!\w){re.escape(needle)}(?!\w)", haystack))
+
+
+def _filename_agrees(file_paths, work) -> bool:
+    title = normalized(display_title(work.title))
+    authors = [normalized(name) for name in work.authors if normalized(name)]
+    if not file_paths or not title or not authors:
+        return False
+    for path in file_paths:
+        stem = normalized(PurePosixPath(path).stem)
+        if _contains_phrase(stem, title) and any(
+            _contains_phrase(stem, author) for author in authors
+        ):
+            return True
+    return False
+
+
+def agrees_with_request(
+    work, release, facts, *, series=(), verified_titles=(), file_paths=()
+):
     # Missing tags are common in M4B files. Conflicting tags still require review.
     if request_file_conflicts(
         work, release, facts, series=series, verified_titles=verified_titles
@@ -75,8 +97,16 @@ def agrees_with_request(work, release, facts, *, series=(), verified_titles=()):
     file_authors_cover = bool(facts.authors) and all(
         set(authors) <= set(value) for value in facts.authors
     )
+    file_authors_subset = bool(facts.authors) and all(
+        value and set(value) <= set(authors) for value in facts.authors
+    )
     file_corroborated = file_titles_agree and file_authors_cover
+    filename_corroborated = _filename_agrees(file_paths, work)
     shown = display_title(release.get("title", ""))
+    shown_contains_title = not shown or _contains_phrase(normalized(shown), normalized(title))
+    file_identity_confirmed = shown_contains_title and (
+        (file_titles_agree and file_authors_subset) or filename_corroborated
+    )
     # Proxied releases with an exact catalog author/title pair can identify an
     # otherwise untagged download. The caller has verified the complete manifest.
     # ABB series/credit forms still need independent file corroboration.
@@ -95,7 +125,7 @@ def agrees_with_request(work, release, facts, *, series=(), verified_titles=()):
             )
         )
     )
-    if not compatible_title(shown, work.title) and not credited_release:
+    if not compatible_title(shown, work.title) and not credited_release and not file_identity_confirmed:
         return False
     if facts.titles and not file_titles_agree:
         return False
@@ -105,9 +135,9 @@ def agrees_with_request(work, release, facts, *, series=(), verified_titles=()):
     ):
         return False
     release_authors = sorted(normalized(name) for name in release.get("authors", []))
-    if release_authors and release_authors != authors:
+    if release_authors and not (set(release_authors) <= set(authors)):
         return False
-    if not release_authors and not facts.authors and not credited_release:
+    if not release_authors and not facts.authors and not credited_release and not filename_corroborated:
         return False
     if work.language and any(value != language_key(work.language) for value in facts.languages):
         return False
@@ -143,11 +173,14 @@ async def file_match(db, work, selection, inspection, group):
             db, work, selection, inspection, group, facts, catalog["series"]
         )
     options = {"series": catalog["series"], "verified_titles": titles}
+    file_paths = [file.path for file in getattr(group, "files", ())]
     return RequestFileMatch(
         work.id,
         titles,
         request_file_conflicts(work, selection.frozen["release"], facts, **options),
-        agrees_with_request(work, selection.frozen["release"], facts, **options),
+        agrees_with_request(
+            work, selection.frozen["release"], facts, file_paths=file_paths, **options
+        ),
     )
 
 

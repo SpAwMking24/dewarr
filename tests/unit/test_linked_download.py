@@ -401,3 +401,34 @@ def test_linked_download_accepts_incomplete_catalogue_authors_without_unrelated_
 
     conflicts = request_file_conflicts(work, release, facts)
     assert ("The files name a different author" not in conflicts) is expected
+
+
+def test_linked_download_accepts_coauthor_subset_and_matching_filename():
+    work = SimpleNamespace(
+        title="The Silent Sea",
+        authors=["Clive Cussler", "Jack du Brul"],
+        language="en",
+        metadata_fields={},
+    )
+    # Release lists only the lead co-author, matching filename confirms book & author.
+    assert agrees_with_request(
+        work,
+        {"title": "The Silent Sea - Clive Cussler", "authors": ["Clive Cussler"]},
+        MatchEvidence(),
+        file_paths=["The Silent Sea - Clive Cussler.epub"],
+    )
+    # Untagged release with no authors but matching filename.
+    assert agrees_with_request(
+        work,
+        {"title": "The Silent Sea - Clive Cussler", "authors": []},
+        MatchEvidence(),
+        file_paths=["The Silent Sea - Clive Cussler.epub"],
+    )
+    # Wrong title in filename still rejected.
+    assert not agrees_with_request(
+        work,
+        {"title": "Other Book - Clive Cussler", "authors": ["Clive Cussler"]},
+        MatchEvidence(),
+        file_paths=["Other Book - Clive Cussler.epub"],
+    )
+
