@@ -411,10 +411,13 @@ def content_reason(group, files, release, *, omitted_audio_paths=None):
     if any(PARTIAL.search(file["path"]) for file in selected):
         return "A file is labelled as partial content"
     if group.medium == "ebook":
-        if len(selected) != 1 or selected[0]["extension"] != "epub":
+        if len(selected) != 1 or selected[0]["extension"] not in {"epub", "pdf", "cbz"}:
             return "This ebook grouping needs completeness review"
         return None
-    if any(file["extension"] not in {"m4b", "mp3"} for file in selected):
+    if any(
+        file["extension"] not in {"m4b", "mp3", "flac", "aac", "ogg", "opus"}
+        for file in selected
+    ):
         return "This audio format needs completeness review"
     if omitted_audio_paths is not None:
         reason = selected_audio_reason(group, omitted_audio_paths)
@@ -708,25 +711,11 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         )
         return
     if not choices:
-        # A DRM-protected / encrypted EPUB of the requested book can never import:
-        # reject the download so the next release is tried automatically.
-        if not release_rejection:
-            from app.domain.catalog_titles import display_title
-            from app.domain.identity import normalized
-            from app.importing.linked_download import _contains_phrase
-
-            book_files = [f for f in files.values() if not is_extra(f["path"])]
-            for file in book_files:
-                if file["state"] == "inspected" or "encrypted" not in (file.get("reason") or ""):
-                    continue
-                stem = normalized(PurePosixPath(file["path"]).stem)
-                if len(book_files) == 1 or any(
-                    _contains_phrase(stem, normalized(display_title(title)))
-                    for title in requested_titles
-                    if normalized(display_title(title))
-                ):
-                    release_rejection = True
-                    break
+        # Whenever a completed single-book download cannot be automatically imported
+        # (wrong book, corrupt/encrypted file, incomplete, ambiguous, or missing files),
+        # reject it so Dewarr automatically moves on to the next candidate release.
+        if not continuation:
+            release_rejection = True
         if release_rejection:
             row.evidence = {**row.evidence, "release_rejection": True}
             await enqueue(
@@ -748,7 +737,7 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
             "held",
             held[0]["reason"]
             if held
-            else file_problem or "No matching book files; review download",
+            else file_problem or "No matching book files; trying next download",
         )
         return
     profile = await current_profile(db)
@@ -816,7 +805,7 @@ async def run(identifier):
                     inspection = await db.get(DownloadInspection, row.inspection_id)
                     if inspection.state == "failed":
                         raise HTTPException(
-                            409, "File inspection failed; open file review to correct it"
+                            422, "File inspection failed; trying next download"
                         )
                     if inspection.state == "ready":
                         await plan_ready(

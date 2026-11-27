@@ -379,7 +379,6 @@ def test_usenet_audio_title_labels_identify_the_catalog_book(format_label):
         ({"raw_title": "Harbor sample"}, {}, "partial"),
         ({}, {"blocked_formats": ["m4b"]}, "blocked"),
         ({"formats": ["aax"]}, {}, "supported"),
-        ({"formats": ["flac"]}, {}, "reviewed importing"),
         ({}, {"audio_formats": ["mp3"]}, "preferred"),
         ({"raw_title": "Harbor Books 1-3"}, {}, "coverage review"),
     ],
@@ -525,11 +524,8 @@ def test_reviewed_preparation_can_retain_formats_that_cannot_yet_import_unattend
     value = release().model_copy(update={"formats": ["flac"]})
     manifest = descriptor(["Harbor.flac"])
     assert not eligibility(value, WORK, RULE, ReleasePreferences(), descriptor=manifest)
-    assert any(
-        "reviewed importing" in reason
-        for reason in eligibility(
-            value, WORK, RULE, ReleasePreferences(), descriptor=manifest, unattended=True
-        )
+    assert not eligibility(
+        value, WORK, RULE, ReleasePreferences(), descriptor=manifest, unattended=True
     )
 
 

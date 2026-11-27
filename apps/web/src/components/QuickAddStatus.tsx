@@ -4,7 +4,6 @@ import type { components } from "../api/schema";
 
 export default function QuickAddStatus({
   receipt,
-  workId,
   starting,
 }: {
   receipt?: components["schemas"]["QuickAddView"];
@@ -50,17 +49,11 @@ export default function QuickAddStatus({
             ? "Open downloads to see what needs attention."
             : receipt?.message;
   const Icon = active ? LoaderCircle : held ? CircleAlert : CircleCheck;
-  const slots = [...new Set(checks.map((check) => check.slot))];
-  const context = new URLSearchParams({ tab: "sources" });
-  if (receipt?.request_id) {
-    context.set("request", receipt.request_id);
-    if (slots.length === 1) context.set("slot", slots[0]);
-  }
   return (
     <section
       className="quick-add-status"
       data-tone={held ? "review" : active ? "active" : "success"}
-      aria-label="Quick add progress"
+      aria-label="Download progress"
     >
       <div
         className="quick-add-status-heading"
@@ -78,37 +71,29 @@ export default function QuickAddStatus({
             : active
               ? "Finding your download"
               : held
-                ? "Request needs attention"
+                ? noMatch
+                  ? "No matching download found yet"
+                  : "Download paused"
                 : owned
                   ? "In library"
                   : queued
-                    ? "Downloads queued"
-                    : "Request saved"}
+                    ? "Downloading"
+                    : "Queued"}
         </strong>
       </div>
       <p>{message}</p>
       {queued && (
         <p className="muted">
-          It goes into your library automatically when it finishes.
+          It will be added to your library automatically when it finishes.
         </p>
       )}
       <div
         className="quick-add-status-actions"
         role="group"
-        aria-label="Quick add next steps"
+        aria-label="Download actions"
       >
         {routeProblem && (
           <Link to="/settings#downloaders">Check download settings</Link>
-        )}
-        {held && workId && (
-          <Link to={`/books/${workId}?${context}`}>Review sources</Link>
-        )}
-        {queued && workId && (
-          <Link
-            to={`/books/${workId}?${new URLSearchParams({ tab: "sources", releaseAll: "1" })}`}
-          >
-            Choose a different release
-          </Link>
         )}
         <Link
           to={
@@ -117,7 +102,7 @@ export default function QuickAddStatus({
               : "/requests"
           }
         >
-          View request
+          View downloads
         </Link>
       </div>
     </section>

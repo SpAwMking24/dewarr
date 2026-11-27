@@ -43,23 +43,34 @@ export default function Requests({
   cleared.delete("q");
   return (
     <div className="requests-page">
-      <h1 className="workspace-title">Requests</h1>
+      <h1 className="workspace-title">Downloads</h1>
       <div className="page-tabs-bar">
-        <p className="muted">
-          {status === "all" || status === "downloading" || status === "open" ? (
-            <Link to={queryFor("library")}>View completed</Link>
-          ) : (
-            <Link to={queryFor("all")}>Back to active downloads</Link>
-          )}
-          {attention > 0 && status === "all" && (
-            <span className="requests-tab-count">{attention}</span>
-          )}
-        </p>
+        <div className="format-tabs" role="tablist" aria-label="Download status">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={status !== "library"}
+            onClick={() => navigate(queryFor("all"))}
+          >
+            Active downloads
+            {attention > 0 && (
+              <span className="requests-tab-count">{attention}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={status === "library"}
+            onClick={() => navigate(queryFor("library"))}
+          >
+            Completed
+          </button>
+        </div>
         <div className="page-tabs-tools">
           <label className="request-sort">
             <span className="sr-only">Sort</span>
             <select
-              aria-label="Sort requests"
+              aria-label="Sort downloads"
               value={sort}
               onChange={(event) =>
                 navigate(
@@ -74,12 +85,7 @@ export default function Requests({
               <option value="title">Title</option>
             </select>
           </label>
-          {admin && (
-            <Link className="button-link" to="/organization/inspections">
-              Import local files
-            </Link>
-          )}
-          <Link className="button-link primary" to="/discover">
+          <Link className="hero-button solid" to="/discover">
             Find books
           </Link>
         </div>

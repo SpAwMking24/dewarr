@@ -619,7 +619,7 @@ async def reject_inspected(attempt_id):
         ):
             return
         inspection = await db.get(DownloadInspection, automatic.inspection_id)
-        if not inspection or inspection.state != "ready" or await has_imports(db, inspection.id):
+        if not inspection or inspection.state not in {"ready", "failed"} or await has_imports(db, inspection.id):
             return
         await failed(
             db, attempt, "Inspected release rejected: wrong book, language, or incomplete content"

@@ -140,14 +140,6 @@ def eligibility(
         )
         if formats and not formats.intersection(preferred):
             reasons.append("No preferred media format is reported by the source")
-        if (
-            unattended
-            and formats
-            and not formats <= ({"epub"} if rule["medium"] == "ebook" else {"m4b", "mp3"})
-        ):
-            reasons.append(
-                "This media format requires reviewed importing rather than automatic acquisition"
-            )
         return list(dict.fromkeys(reasons))
     if descriptor:
         formats = {PurePosixPath(f.path).suffix.lower().lstrip(".") for f in descriptor.files}
@@ -182,15 +174,12 @@ def eligibility(
             reasons.append("The torrent contains unsupported or ambiguous file types")
         if not primary:
             reasons.append("No supported primary media files were found")
-        elif unattended and any(
-            PurePosixPath(f.path).suffix.lower().lstrip(".")
-            not in ({"epub"} if rule["medium"] == "ebook" else {"m4b", "mp3"})
-            for f in primary
+        elif (
+            not proof
+            and rule["medium"] == "ebook"
+            and len(primary) != 1
+            and len({PurePosixPath(f.path).stem.lower() for f in primary}) != 1
         ):
-            reasons.append(
-                "This media format requires reviewed importing rather than automatic acquisition"
-            )
-        elif not proof and rule["medium"] == "ebook" and len(primary) != 1:
             reasons.append("Multiple ebook files need edition or collection review")
         elif not proof and rule["medium"] == "audio":
             if len(primary) == 1 and single_part_name(
