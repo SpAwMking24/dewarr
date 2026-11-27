@@ -393,11 +393,22 @@ function Results({
     if (!sourceValid || !formatValid || !sortValid) setPageIndex(0);
   }, [sourceValid, formatValid, sortValid]);
   const needle = text.trim().toLowerCase();
+  const squash = (value: string) =>
+    value.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const wanted = ` ${squash(data.query || "")} `;
+  const namesBook = (item: Search["items"][number]) =>
+    wanted.trim().length < 2 ||
+    [item.release.title, item.release.raw_title].some(
+      (value) => !!value && ` ${squash(value)} `.includes(wanted),
+    );
+  const offTopic = data.items.filter((item) => !namesBook(item)).length;
+  const showOffTopic = view.get("releaseOffTopic") === "1";
   const filtered = data.items
     .map((item, rank) => ({ item, rank }))
     .filter(({ item }) => {
       const release = item.release;
       return (
+        (showOffTopic || namesBook(item)) &&
         (!activeSource || sourceKey(release) === activeSource) &&
         (!activeFormat ||
           (activeFormat === "unknown"
@@ -710,6 +721,21 @@ function Results({
               ? ` · showing ${1}–${Math.min(visibleCount, filtered.length)}`
               : ""}
           </p>
+          {offTopic > 0 && (
+            <p className="notice">
+              {showOffTopic
+                ? `Showing ${offTopic} results that do not name this book. `
+                : `${offTopic} results that do not name this book are hidden. `}
+              <button
+                type="button"
+                onClick={() =>
+                  updateView({ releaseOffTopic: showOffTopic ? null : "1" })
+                }
+              >
+                {showOffTopic ? "Hide them" : "Show them"}
+              </button>
+            </p>
+          )}
           {filteredView && !filtered.length && (
             <p className="notice">
               No loaded releases match these filters. Clear the filters to see
