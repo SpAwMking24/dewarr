@@ -8243,6 +8243,8 @@ export interface components {
       can_retry: boolean;
       /** File Conflicts */
       file_conflicts?: string[];
+      /** Ignored Paths */
+      ignored_paths?: string[];
     };
     /** DownloadFolderView */
     DownloadFolderView: {

@@ -74,6 +74,7 @@ class DownloadContext(BaseModel):
     message: str
     can_retry: bool = False
     file_conflicts: list[str] = Field(default_factory=list)
+    ignored_paths: list[str] = Field(default_factory=list)
 
 
 class InspectionView(BaseModel):
@@ -291,6 +292,9 @@ async def inspection(inspection_id: UUID, admin: Admin, db: Database):
             and not automatic.evidence.get("release_rejection")
             and not get_settings().recovery_mode
         ),
+        ignored_paths=list((automatic.evidence or {}).get("ignored_paths", []))
+        if automatic
+        else [],
     )
     if row.state == "ready" and row.snapshot and not plan:
         from app.importing.grouping import current_grouping

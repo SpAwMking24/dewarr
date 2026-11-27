@@ -75,7 +75,11 @@ export default function DownloadImportReview({
   const blocked = ["held", "review", "cancelled", "cancel-held"].includes(
     download.state,
   );
-  const files = inspection.snapshot?.files || [];
+  const ignored = new Set(download.ignored_paths || []);
+  // Downloads can hold several books; only the one matching the title and author is shown.
+  const files = (inspection.snapshot?.files || []).filter(
+    (file) => !ignored.has(file.path),
+  );
   const media = files.filter((file) => file.medium);
   const needsDecision =
     (!inspection.plan_id || download.state === "cancelled") &&

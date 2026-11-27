@@ -349,11 +349,39 @@ def _group_names_title(group, files, titles):
     return False
 
 
-def relevant_groups(groups, files, titles):
+def _flatten_names(value):
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list | tuple | set):
+        return [name for item in value for name in _flatten_names(item)]
+    return []
+
+
+def _group_names_author(group, files, authors):
+    """True when embedded author tags, album artist or the file path name a requested author."""
+    from app.domain.identity import normalized
+
+    haystack = []
+    for member in group.files:
+        observed = files.get(member.path) or {}
+        haystack.extend(_flatten_names((observed.get("metadata") or {}).get("authors")))
+        tags = (observed.get("technical") or {}).get("tags") or {}
+        haystack.extend(_flatten_names([tags.get("album_artist"), tags.get("artist")]))
+        haystack.append(member.path)
+    blob = normalized(" ".join(haystack))
+    for author in authors:
+        words = [word for word in normalized(author).split() if len(word) > 1]
+        if words and all(word in blob.split() for word in words):
+            return True
+    return False
+
+
+def relevant_groups(groups, files, titles, authors=None):
     """Drop other books and byte-identical duplicate copies from a multi-book download.
 
-    Nothing is dropped unless at least one group names the requested book, so a
-    download with no recognisable title still goes to the usual review.
+    Only the book matching the requested title (and author, when several share the
+    title) is kept. Nothing is dropped unless at least one group names the requested
+    book, so a download with no recognisable title still goes to the usual review.
     Returns (kept, skipped).
     """
     if len(groups) < 2 or not titles:
@@ -361,8 +389,16 @@ def relevant_groups(groups, files, titles):
     named = [group for group in groups if _group_names_title(group, files, titles)]
     if not named:
         return list(groups), []
+    if authors and len(named) > 1:
+        by_author = [group for group in named if _group_names_author(group, files, authors)]
+        if by_author:
+            named = by_author
     skipped = [
-        {"group_key": group.key, "reason": "Not the requested book; ignored automatically"}
+        {
+            "group_key": group.key,
+            "reason": "Not the requested book; ignored automatically",
+            "paths": [f.path for f in group.files],
+        }
         for group in groups
         if group not in named
     ]
@@ -386,6 +422,7 @@ def relevant_groups(groups, files, titles):
                 {
                     "group_key": group.key,
                     "reason": "Duplicate copy of a file already selected; ignored automatically",
+                    "paths": [f.path for f in group.files],
                 }
             )
             continue
@@ -529,9 +566,14 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
     choices, held, unresolved, skipped = [], [], [], []
     release_rejection = False
     covered_by_existing = set()
-    requested_titles = [(await canonical_work(db, work_id)).title for work_id in works]
-    groups, ignored = relevant_groups(grouping.groups, files, requested_titles)
+    requested_works = [await canonical_work(db, work_id) for work_id in works]
+    requested_titles = [work.title for work in requested_works]
+    requested_authors = [name for work in requested_works for name in (work.authors or [])]
+    groups, ignored = relevant_groups(
+        grouping.groups, files, requested_titles, requested_authors
+    )
     skipped.extend(ignored)
+    ignored_paths = sorted({path for item in ignored for path in item.get("paths", [])})
     for group in groups:
         match = await match_group(
             db, inspection.snapshot, grouping_revision, group, inspection=inspection
@@ -702,6 +744,7 @@ async def plan_ready(db, row, selection, inspection, approver, destination, curr
         "completeness_basis": "complete-transfer-and-supported-container",
         "held_groups": held,
         "skipped_groups": skipped,
+        "ignored_paths": ignored_paths,
         "excluded_files": [item.model_dump() for item in grouping.excluded],
     }
     if not choices and continuation and set(wanted) <= covered_by_existing:
