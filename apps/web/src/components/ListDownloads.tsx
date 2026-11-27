@@ -7,7 +7,13 @@ import { Notice } from "../components";
 import { randomUUID } from "../randomUUID";
 
 type Mode = "both" | "ebook" | "audio";
-export default function ListDownloads({
+/** Bulk "Download all missing" on lists is switched off; per-book and author downloads remain. */
+export default function ListDownloads(_props: Parameters<typeof ListDownloadsButton>[0]) {
+  void ListDownloadsButton;
+  return null;
+}
+
+function ListDownloadsButton({
   listId,
   source = "list",
   name,
