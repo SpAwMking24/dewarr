@@ -33,6 +33,7 @@ from app.domain.work_graph import acquisition_lock, canonical_work
 from app.jobs.queue import enqueue
 
 KIND = "lists.acquire"
+CONCURRENT_BOOKS = 8
 
 
 def next_tick(now):
@@ -503,39 +504,41 @@ async def run(identifier):
             ListAcquisitionBook.id.in_(leaders),
         )
 
-        # Finish an already-started book before opening another one.
-        # This also drains searches launched by older batch-based versions.
-        active = await db.scalar(
-            base.where(ListAcquisitionBook.state.in_(["searching", "selecting"]))
-            .order_by(ListAcquisitionBook.created_at, ListAcquisitionBook.id)
-            .limit(1)
+        # Several books run side by side so a whole author catalogue starts promptly
+        # instead of one book per several-minute search cycle.
+        active_books = list(
+            await db.scalars(
+                base.where(ListAcquisitionBook.state.in_(["searching", "selecting"]))
+                .order_by(ListAcquisitionBook.created_at, ListAcquisitionBook.id)
+                .limit(CONCURRENT_BOOKS)
+            )
         )
-
-        book = None
-        if active is not None:
-            # An active book owns the turn even when its next poll is not due.
-            if active.next_check_at is None or active.next_check_at <= now:
-                book = active
-        else:
+        books = [
+            item for item in active_books if item.next_check_at is None or item.next_check_at <= now
+        ]
+        free = CONCURRENT_BOOKS - len(active_books)
+        if free > 0:
             # A queued download (pending) does not hold up the next book.
-            book = await db.scalar(
-                base.where(
-                    ListAcquisitionBook.state.in_(["held", "wanted"]),
-                    ListAcquisitionBook.next_check_at <= now,
+            books.extend(
+                await db.scalars(
+                    base.where(
+                        ListAcquisitionBook.state.in_(["held", "wanted"]),
+                        ListAcquisitionBook.next_check_at <= now,
+                    )
+                    .order_by(ListAcquisitionBook.next_check_at, ListAcquisitionBook.id)
+                    .limit(free)
                 )
-                .order_by(ListAcquisitionBook.next_check_at, ListAcquisitionBook.id)
-                .limit(1)
             )
 
         checked = 0
-        if book is not None:
+        for book in books:
             try:
                 async with db.begin_nested():
                     await advance_book(db, user, policy, book, now)
             except HTTPException as error:
                 await db.refresh(book)
                 book.state, book.message, book.next_check_at = "held", str(error.detail), None
-            checked = 1
+            checked += 1
 
         operation.status, operation.message = "completed", f"Checked {checked} monitored books"
         policy.message = "Monitoring list additions and requested media"
