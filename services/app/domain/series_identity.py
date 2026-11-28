@@ -37,6 +37,20 @@ def note_position(value):
     return Decimal(total)
 
 
+def title_is_series_name(value, series):
+    """A title/album tag that only repeats the catalog series (for example "The Oregon Files").
+
+    Many audiobook files put the series in the album tag. That names the series the
+    book belongs to, not a different book, so it is neutral evidence.
+    """
+    key = exact_title_key(series_name(value or ""))
+    return bool(key) and any(
+        key == exact_title_key(series_name(entry.get("name", "")))
+        for entry in series
+        if isinstance(entry, dict)
+    )
+
+
 def series_note_agrees(note, series, *, require_position=False):
     # Preserve punctuation until numbers have been checked: 5.5 is not 5,
     # and 1-3 is a collection, not a single position.
@@ -45,7 +59,7 @@ def series_note_agrees(note, series, *, require_position=False):
         name = series_name(entry.get("name", ""))
         if not name:
             continue
-        match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", note)
+        match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", note, re.IGNORECASE)
         if not match:
             continue
         remainder = note[: match.start()] + " " + note[match.end() :]

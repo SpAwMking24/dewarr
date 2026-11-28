@@ -13,7 +13,11 @@ from app.domain.book_sources import identity
 from app.domain.catalog_titles import display_title
 from app.domain.identity import normalized
 from app.domain.release_profiles import indexer_title_authors
-from app.domain.series_identity import title_outside_series_note, title_outside_series_prefix
+from app.domain.series_identity import (
+    title_is_series_name,
+    title_outside_series_note,
+    title_outside_series_prefix,
+)
 from app.domain.title_matching import compatible_title
 from app.domain.work_graph import canonical_work
 from app.importing.file_editions import attach_file_edition
@@ -33,6 +37,7 @@ def request_file_conflicts(
         compatible_title(value, work.title, allow_extra_subtitle=reviewed_collection)
         or (title_outside_series_note(value, catalog) is not None)
         or (title_outside_series_prefix(value, catalog) is not None)
+        or title_is_series_name(value, series)
         or value in verified_titles
         for value in facts.titles
     )
@@ -91,6 +96,7 @@ def agrees_with_request(
         compatible_title(value, work.title)
         or (title_outside_series_note(value, catalog) is not None)
         or (title_outside_series_prefix(value, catalog) is not None)
+        or title_is_series_name(value, series)
         or value in verified_titles
         for value in facts.titles
     )
