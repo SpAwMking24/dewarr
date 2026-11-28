@@ -131,14 +131,17 @@ export default function DownloadMatchReview({
     (unreadable.length > 0 ||
       (data?.grouping.content.groups.length || 0) > 1) &&
     download.can_retry;
+  // The "Continue automatically" prompt never waits for a click: re-check once
+  // unless the user genuinely has to choose between catalogue editions.
+  const autoContinue = (multipleGroups || download.can_retry) && !choosing;
   useEffect(() => {
     // At most once per download for the whole browser session, so a failing
     // re-check can never loop.
     const key = `dewarr-auto-retry:${download.attempt_id ?? inspection.id}`;
-    if (!multipleGroups || retrying || sessionStorage.getItem(key)) return;
+    if (!autoContinue || retrying || sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
     retry();
-  }, [multipleGroups, retrying, inspection.id, retry]);
+  }, [autoContinue, retrying, download.attempt_id, inspection.id, retry]);
   const reason = unreadable.length
     ? unreadable[0].reason ||
       "The downloaded book could not be read. Check its files and try again."

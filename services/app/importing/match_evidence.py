@@ -168,7 +168,7 @@ def group_evidence(snapshot, group):
                 {"scheme": key, "value": tags[key]} for key in (*ISBN_KEYS, "asin") if key in tags
             ]
         if title:
-            titles.add(normalized(title))
+            titles.add(normalized(re.sub(r"^\s*(?:\[[^\]]{1,12}\]\s*)+", "", title) or title))
         # EPUB creators and audio tags may use semicolon lists, including a
         # trailing separator. Preserve every credit; commas remain part of names.
         if names := tuple(
