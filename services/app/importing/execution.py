@@ -638,9 +638,10 @@ async def find_item(adapter, entry, library_external_id, *, before_metadata=None
             break
         page += 1
     if len(found) > 1:
-        raise PublicationError(
-            f"{_app_name(found[0])} reports duplicate items for this import folder"
-        )
+        # Every candidate already passed the exact-files check, so they are the same
+        # book indexed twice. Carry on with the first instead of blocking the import.
+        found.sort(key=lambda item: str(item.id))
+        found = found[:1]
     if not found:
         return None
     current = await adapter.item(found[0].id)
