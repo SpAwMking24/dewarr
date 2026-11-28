@@ -2,6 +2,8 @@
 
 import asyncio
 import math
+import os
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -15,7 +17,27 @@ from app.domain.operations import transaction_lock
 from app.domain.source_network import check_actor
 from app.security import decrypt_secrets
 
-REQUEST_INTERVAL = 1.0
+# Minimum gap between any two Prowlarr requests (all workers share it). Override with
+# DEWARR_PROWLARR_INTERVAL if your indexers are stricter or more generous.
+REQUEST_INTERVAL = float(os.environ.get("DEWARR_PROWLARR_INTERVAL", "2.5"))
+# After a rate-limit response the whole source rests, doubling on each repeat.
+COOLDOWN_BASE = 60
+COOLDOWN_MAX = 900
+INDEXER_CACHE_SECONDS = 300
+_indexer_cache: dict[int, tuple[float, list]] = {}
+
+
+def cooldown_seconds(strikes):
+    """Escalating rest period: 60s, 120s, 240s ... capped at 15 minutes."""
+    return min(COOLDOWN_BASE * 2 ** max(strikes - 1, 0), COOLDOWN_MAX)
+
+
+async def cooling_until():
+    """When Prowlarr is resting after a rate limit, else None. Callers hold off new work."""
+    async with session_factory()() as db:
+        row = await db.get(SourceConnection, "prowlarr")
+        until = row.blocked_until if row and row.enabled else None
+        return until if until and until > datetime.now(UTC) else None
 # Queue behind earlier requests for up to this long before reporting a cooldown.
 # A short wait here turned ordinary bursts (one search per book) into errors.
 QUEUE_WAIT = 20
@@ -71,7 +93,13 @@ async def _prowlarr_call_once(
             await asyncio.sleep(wait)
         async with ProwlarrClient(endpoint, secrets["api_key"]) as client:
             if operation in {"indexers", "search", "resolve"}:
-                indexers = await client.indexers()
+                cached = _indexer_cache.get(generation)
+                if operation != "indexers" and cached and time.monotonic() - cached[0] < INDEXER_CACHE_SECONDS:
+                    indexers = cached[1]
+                else:
+                    indexers = await client.indexers()
+                    _indexer_cache.clear()
+                    _indexer_cache[generation] = (time.monotonic(), indexers)
                 excluded = set(secrets.get("excluded_indexers", []))
                 for indexer in indexers:
                     indexer.excluded = indexer.id in excluded or (native_mam and indexer.native_mam)
@@ -115,9 +143,20 @@ async def _prowlarr_call_once(
             raise HTTPException(409, "Prowlarr request expired. Retry with current settings.")
         row.lease_token, row.lease_until = None, None
         row.next_request_at = datetime.now(UTC) + timedelta(seconds=REQUEST_INTERVAL)
-        if client and client.cooldown:
-            due = datetime.now(UTC) + timedelta(seconds=client.cooldown)
+        state = dict(row.automation_state or {})
+        limited = bool(failure and failure.kind == FailureKind.RATE_LIMIT) or bool(
+            client and client.cooldown
+        )
+        if limited and not (failure and "another request" in str(failure)):
+            strikes = int(state.get("rate_strikes", 0)) + 1
+            state["rate_strikes"] = strikes
+            rest = max(cooldown_seconds(strikes), client.cooldown if client else 0)
+            due = datetime.now(UTC) + timedelta(seconds=rest)
             row.blocked_until = max(row.blocked_until or due, due)
+            row.automation_state = state
+        elif not failure and state.get("rate_strikes"):
+            state["rate_strikes"] = 0
+            row.automation_state = state
         changed = row.generation != generation or not row.enabled
         if not changed:
             row.last_checked_at = datetime.now(UTC)

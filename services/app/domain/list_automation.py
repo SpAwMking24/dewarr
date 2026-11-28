@@ -33,7 +33,7 @@ from app.domain.work_graph import acquisition_lock, canonical_work
 from app.jobs.queue import enqueue
 
 KIND = "lists.acquire"
-CONCURRENT_BOOKS = 8
+CONCURRENT_BOOKS = 3
 
 
 def next_tick(now):
@@ -517,6 +517,11 @@ async def run(identifier):
             item for item in active_books if item.next_check_at is None or item.next_check_at <= now
         ]
         free = CONCURRENT_BOOKS - len(active_books)
+        from app.domain.prowlarr_network import cooling_until
+
+        if free > 0 and await cooling_until():
+            # Prowlarr is resting after a rate limit: finish what is running, open nothing new.
+            free = 0
         if free > 0:
             # A queued download (pending) does not hold up the next book.
             books.extend(
