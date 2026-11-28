@@ -9,7 +9,7 @@ from app.importing.filesystem import InspectionError
 
 
 def probe_output(
-    command, fd, deadline, *, label, seconds=20, max_output=1024 * 1024, should_continue=None
+    command, fd, deadline, *, label, seconds=60, max_output=1024 * 1024, should_continue=None
 ):
     expires = min(deadline, time.monotonic() + seconds)
     if expires <= time.monotonic():

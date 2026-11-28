@@ -261,6 +261,26 @@ async def recover(db, identifier):
     operation.job_id = await enqueue(db, "organization.automatic", automatic_id=str(row.id))
 
 
+def manifest_covers(expected, actual):
+    """Every announced file arrived at its announced size.
+
+    Extra files (covers, nfo files, a book bundled beside the requested one) are
+    harmless: grouping later keeps only the requested book. slskd also renames a
+    second copy of a name to ``name_<digits>.ext``; that same-size file counts.
+    """
+    renamed = {}
+    for path, size in actual.items():
+        base = re.sub(r"[\s_.-]*\d{10,}(?=\.[^./]+$|$)", "", path)
+        renamed.setdefault((base, size), path)
+    for path, size in expected.items():
+        if actual.get(path) == size:
+            continue
+        if (re.sub(r"[\s_.-]*\d{10,}(?=\.[^./]+$|$)", "", path), size) in renamed:
+            continue
+        return False
+    return True
+
+
 def manifest_matches(selection, inspection):
     descriptor = selection.frozen["descriptor"]
     if descriptor.get("protocol") == "nzb":
@@ -281,7 +301,7 @@ def manifest_matches(selection, inspection):
         relative = str(path if file_scope else path.relative_to(descriptor["name"]))
         expected[relative] = item["size_bytes"]
     actual = {file["path"]: file["identity"]["size"] for file in inspection.snapshot["files"]}
-    if actual != expected:
+    if not manifest_covers(expected, actual):
         raise HTTPException(
             409, "Inspected files differ from the completed release; review its contents"
         )
@@ -469,11 +489,19 @@ def content_reason(group, files, release, *, omitted_audio_paths=None):
         # not a complete book. A real book named "Chapter 37" stays eligible.
         if single_part_name(stem, title):
             return "This audio filename identifies one part of a larger recording"
-        tags = (selected[0].get("technical") or {}).get("tags", {})
-        if str(tags.get("track", "1")) not in {"1", "1/1"} or str(tags.get("disc", "1")) not in {
-            "1",
-            "1/1",
-        }:
+        technical = selected[0].get("technical") or {}
+        tags = technical.get("tags", {})
+        track, disc = str(tags.get("track", "1")), str(tags.get("disc", "1"))
+        # Publishers often store the book's series position (for example 12) in the
+        # track tag. A lone file of two hours or more with no "n of m" total is the
+        # whole recording, not one chapter of it.
+        long_recording = (technical.get("duration") or 0) >= 7200
+        declared_total = any(
+            (m := re.fullmatch(r"\d+/(\d+)", value)) and int(m[1]) > 1 for value in (track, disc)
+        )
+        if declared_total or (
+            not long_recording and (track not in {"1", "1/1"} or disc not in {"1", "1/1"})
+        ):
             return "This audio file may be one part of a larger recording"
         return None
     # A verified complete transfer can establish the track set even if the
