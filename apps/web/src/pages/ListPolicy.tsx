@@ -558,7 +558,23 @@ function PolicyEditor({
       onError?.(headlessError);
     }
   }, [headless, headlessError, onError]);
-  if (headless) return null;
+  if (headless) {
+    // The picker reports the verified book-list revision that unlocks the preview,
+    // so it must stay mounted (hidden) while Download all runs without UI.
+    return mode === "automatic" ? (
+      <div hidden aria-hidden="true">
+        <ListBookPicker
+          listId={listId}
+          selected={selected}
+          onChange={() => undefined}
+          maximum={25}
+          label="Find current books"
+          onValidityChange={setSelectionValid}
+          onRevisionChange={setContentRevision}
+        />
+      </div>
+    ) : null;
+  }
   return (
     <>
       {blockedReason && <p role="alert">{blockedReason}</p>}
